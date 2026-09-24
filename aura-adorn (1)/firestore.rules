@@ -1,0 +1,103 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // Default-deny catch-all
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isAdmin() {
+      return isSignedIn() && (
+        exists(/databases/$(database)/documents/admins/$(request.auth.uid)) ||
+        request.auth.token.email == 'nirbanmubashirzubair@gmail.com'
+      );
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    // Products collection: public read, admin write
+    match /products/{productId} {
+      allow read: if true;
+      allow create, update, delete: if isAdmin();
+    }
+
+    // Categories: public read, admin write
+    match /categories/{categoryId} {
+      allow read: if true;
+      allow create, update, delete: if isAdmin();
+    }
+
+    // Store Settings: public read, admin write
+    match /settings/{settingId} {
+      allow read: if true;
+      allow create, update, delete: if isAdmin();
+    }
+
+    // Reviews: public read, customer create, admin manage
+    match /reviews/{reviewId} {
+      allow read: if true;
+      allow create: if isValidId(reviewId) && 
+        request.resource.data.rating >= 1 && 
+        request.resource.data.rating <= 5 &&
+        request.resource.data.customerName is string &&
+        request.resource.data.customerName.size() <= 100 &&
+        request.resource.data.comment is string &&
+        request.resource.data.comment.size() <= 2000;
+      allow update, delete: if isAdmin();
+    }
+
+    // Orders: Anyone can create an order (COD checkout)
+    // Individual order lookup allowed by orderId for customer order tracking
+    // Listing all orders restricted to store admin
+    match /orders/{orderId} {
+      allow create: if isValidId(orderId) &&
+        request.resource.data.customerName is string &&
+        request.resource.data.customerName.size() <= 150 &&
+        request.resource.data.phone is string &&
+        request.resource.data.phone.size() <= 50 &&
+        request.resource.data.address is string &&
+        request.resource.data.address.size() <= 500 &&
+        request.resource.data.totalAmount is number &&
+        request.resource.data.items is list &&
+        request.resource.data.items.size() > 0 &&
+        request.resource.data.items.size() <= 50;
+      allow get: if isValidId(orderId);
+      allow list: if isAdmin();
+      allow update: if isValidId(orderId) && isAdmin();
+      allow delete: if isAdmin();
+    }
+
+    // Customer Profiles: owner or admin
+    match /customers/{customerId} {
+      allow read, write: if isValidId(customerId) && (
+        (isSignedIn() && request.auth.uid == customerId) ||
+        isAdmin()
+      );
+    }
+
+    // Test connection doc: public read for health checks
+    match /test/{testId} {
+      allow read: if isValidId(testId);
+    }
+
+    // Admins registry
+    match /admins/{adminId} {
+      allow read, write: if isValidId(adminId) && isAdmin();
+    }
+
+    // Newsletter Subscribers: anyone can subscribe with email, admin manages
+    match /subscribers/{subscriberId} {
+      allow create: if isValidId(subscriberId) &&
+        request.resource.data.email is string &&
+        request.resource.data.email.size() <= 150;
+      allow read, update, delete: if isAdmin();
+    }
+  }
+}
