@@ -1,0 +1,6 @@
+{
+  "name": "MS. | Ultra-Premium Clothing E-Commerce",
+  "description": "Exclusive haute couture and modern clothing brand featuring luxury Black & Gold aesthetics, complete checkout, live order tracking, and advanced management dashboard.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
