@@ -91,5 +91,13 @@ service cloud.firestore {
     match /admins/{adminId} {
       allow read, write: if isValidId(adminId) && isAdmin();
     }
+
+    // Newsletter Subscribers: anyone can subscribe with email, admin manages
+    match /subscribers/{subscriberId} {
+      allow create: if isValidId(subscriberId) &&
+        request.resource.data.email is string &&
+        request.resource.data.email.size() <= 150;
+      allow read, update, delete: if isAdmin();
+    }
   }
 }

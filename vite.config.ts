@@ -17,8 +17,8 @@ export default defineConfig(() => {
         includeAssets: ['favicon.ico', 'apple-touch-icon.png', 'icon.svg'],
         manifest: {
           id: '/',
-          name: 'Aura & Carat Luxury Jewellery',
-          short_name: 'Aura & Carat',
+          name: 'AA JEWELERS Luxury Jewellery',
+          short_name: 'AA JEWELERS',
           description: 'Ultra-premium fine jewellery boutique offering certified diamonds, solid 18K/22K gold, and white-glove Cash on Delivery.',
           theme_color: '#1C1815',
           background_color: '#FAF8F5',

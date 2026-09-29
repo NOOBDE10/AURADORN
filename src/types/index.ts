@@ -26,6 +26,16 @@ export interface Product {
   isFeatured: boolean;
   isNewArrival: boolean;
   isBestSeller: boolean;
+  /** Luxury Patron & Loyalty tier classification */
+  loyaltyBadge?: {
+    type: 'vault_exclusive' | 'limited_edition' | 'patron_reserve' | 'atelier_private' | 'connoisseur';
+    label?: string;
+    editionNumber?: string; // e.g. "No. 07 of 50" or "1 of 25"
+    pointsMultiplier?: number; // e.g. 2x or 3x Patron Points
+    perkNote?: string;
+  };
+  isLimitedEdition?: boolean;
+  limitedPiecesCount?: number;
   images: string[];
   rating: number;
   reviewCount: number;
@@ -93,6 +103,8 @@ export interface Order {
   paymentMethod: 'Cash on Delivery';
   status: OrderStatus;
   orderStatus?: OrderStatus;
+  trackingNumber?: string;
+  courierName?: string;
   trackingUpdates: TrackingStep[];
   createdAt: string;
   updatedAt?: string;
@@ -154,4 +166,12 @@ export interface CustomerProfile {
   }>;
   wishlist: string[]; // product IDs
   createdAt: string;
+}
+
+export interface NewsletterSubscriber {
+  id: string;
+  email: string;
+  subscribedAt: string;
+  source: string;
+  active: boolean;
 }

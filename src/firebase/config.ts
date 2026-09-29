@@ -1,10 +1,24 @@
-import { initializeApp } from 'firebase/app';
+import { initializeApp, getApps } from 'firebase/app';
 import { getAuth } from 'firebase/auth';
-import { getFirestore, doc, getDocFromServer } from 'firebase/firestore';
+import { 
+  getFirestore, 
+  initializeFirestore, 
+  doc, 
+  getDocFromServer 
+} from 'firebase/firestore';
 import firebaseConfig from '../../firebase-applet-config.json';
 
-// Initialize Firebase App
-const app = initializeApp(firebaseConfig);
+// Initialize Firebase App safely
+const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApps()[0];
+
+// Configure Firestore with forced long-polling to prevent WebChannel streaming disconnects in iframe/proxy environments
+try {
+  initializeFirestore(app, {
+    experimentalForceLongPolling: true,
+  }, firebaseConfig.firestoreDatabaseId);
+} catch {
+  // Already initialized or fallback
+}
 
 // Initialize Firestore with configured databaseId (MANDATORY for AI Studio setup)
 export const db = getFirestore(app, firebaseConfig.firestoreDatabaseId);
@@ -38,8 +52,10 @@ export interface FirestoreErrorInfo {
 }
 
 export function handleFirestoreError(error: unknown, operationType: OperationType, path: string | null) {
+  const errMessage = error instanceof Error ? error.message : String(error);
+  
   const errInfo: FirestoreErrorInfo = {
-    error: error instanceof Error ? error.message : String(error),
+    error: errMessage,
     authInfo: {
       userId: auth.currentUser?.uid || null,
       email: auth.currentUser?.email || null,
@@ -54,7 +70,13 @@ export function handleFirestoreError(error: unknown, operationType: OperationTyp
     operationType,
     path
   };
-  console.error('Firestore Error: ', JSON.stringify(errInfo));
+
+  // Only log formatted Firestore Error if it is a permission issue as mandated by the skill
+  if (errMessage.includes('Missing or insufficient permissions') || errMessage.includes('permission-denied')) {
+    console.error('Firestore Error: ', JSON.stringify(errInfo));
+  } else {
+    console.warn(`Firestore [${operationType}] at [${path}]:`, errMessage);
+  }
   return errInfo;
 }
 
@@ -63,12 +85,9 @@ export async function testFirestoreConnection() {
   try {
     await getDocFromServer(doc(db, 'test', 'connection'));
   } catch (error) {
-    // When offline or connecting to backend, Firestore operates in offline cache mode
-    const msg = error instanceof Error ? error.message : String(error);
-    if (msg.includes('the client is offline') || msg.includes('unavailable') || msg.includes('Could not reach Cloud Firestore')) {
-      console.info('Firebase Firestore is operating in offline-first mode or establishing initial connection.');
-    } else {
-      console.warn('Firestore initial connection status:', msg);
+    if (error instanceof Error && error.message.includes('the client is offline')) {
+      console.error("Please check your Firebase configuration.");
     }
   }
 }
+

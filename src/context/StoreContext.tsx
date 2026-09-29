@@ -33,6 +33,7 @@ interface CartSummary {
 }
 
 interface StoreContextType {
+  isLoading: boolean;
   products: Product[];
   categories: Category[];
   settings: StoreSettings;
@@ -67,7 +68,7 @@ interface StoreContextType {
   loginUser: (email: string, password?: string) => Promise<void>;
   registerUser: (email: string, password: string, name: string) => Promise<void>;
   logoutUser: () => Promise<void>;
-  updateOrderStatus: (orderId: string, status: OrderStatus) => Promise<void>;
+  updateOrderStatus: (orderId: string, status: OrderStatus, trackingNumber?: string, courierName?: string) => Promise<void>;
   handleSaveProduct: (product: Partial<Product>) => Promise<void>;
   handleDeleteProduct: (productId: string) => Promise<void>;
   handleUpdateSettings: (settings: StoreSettings) => Promise<void>;
@@ -89,6 +90,16 @@ interface StoreContextType {
   toggleAdminMode: () => void;
   refreshData: () => Promise<void>;
   fetchOrder: (orderId: string) => Promise<Order | null>;
+
+  // Product Comparison Feature
+  compareList: Product[];
+  addToCompare: (product: Product) => boolean;
+  removeFromCompare: (productId: string) => void;
+  clearCompare: () => void;
+  isInCompare: (productId: string) => boolean;
+  isCompareModalOpen: boolean;
+  openCompareModal: () => void;
+  closeCompareModal: () => void;
 
   // Open/Close Modals
   openCart: () => void;
@@ -114,8 +125,10 @@ const StoreContext = createContext<StoreContextType | undefined>(undefined);
 
 const LOCAL_CART_KEY = 'aura_carat_cart';
 const LOCAL_WISHLIST_KEY = 'aura_carat_wishlist';
+const LOCAL_COMPARE_KEY = 'aura_carat_compare';
 
 export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
+  const [isLoading, setIsLoading] = useState<boolean>(true);
   const [products, setProducts] = useState<Product[]>(INITIAL_PRODUCTS);
   const [categories, setCategories] = useState<Category[]>(INITIAL_CATEGORIES);
   const [settings, setSettings] = useState<StoreSettings>(INITIAL_SETTINGS);
@@ -132,6 +145,14 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
   const [wishlist, setWishlist] = useState<string[]>(() => {
     try {
       const saved = localStorage.getItem(LOCAL_WISHLIST_KEY);
+      return saved ? JSON.parse(saved) : [];
+    } catch {
+      return [];
+    }
+  });
+  const [compareList, setCompareList] = useState<Product[]>(() => {
+    try {
+      const saved = localStorage.getItem(LOCAL_COMPARE_KEY);
       return saved ? JSON.parse(saved) : [];
     } catch {
       return [];
@@ -158,6 +179,7 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
   const [isTrackingOpen, setIsTrackingOpen] = useState(false);
   const [isAccountOpen, setIsAccountOpen] = useState(false);
   const [isAdminOpen, setIsAdminOpen] = useState(false);
+  const [isCompareModalOpen, setIsCompareModalOpen] = useState(false);
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [quickViewProduct, setQuickViewProduct] = useState<Product | null>(null);
   const [activeTrackingId, setActiveTrackingId] = useState<string | null>(null);
@@ -188,12 +210,24 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
     }
   }, [wishlist]);
 
+  // Sync Comparison List to LocalStorage
+  useEffect(() => {
+    try {
+      localStorage.setItem(LOCAL_COMPARE_KEY, JSON.stringify(compareList));
+    } catch (e) {
+      console.error(e);
+    }
+  }, [compareList]);
+
   // Firebase Auth listener
   useEffect(() => {
     testFirestoreConnection();
     const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
       setUser(currentUser);
-      if (currentUser?.email === 'nirbanmubashirzubair@gmail.com') {
+      if (
+        currentUser?.email === 'auraadornjewellers@gmail.com' ||
+        currentUser?.email === 'nirbanmubashirzubair@gmail.com'
+      ) {
         setIsAdminMode(true);
       }
     });
@@ -210,11 +244,19 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
   });
 
   // Admin status check (Owner email or toggle)
-  const isAdmin = (user?.email === 'nirbanmubashirzubair@gmail.com') || (adminUser?.email === 'nirbanmubashirzubair@gmail.com') || isAdminMode;
-  const isOwnerAuthenticated = Boolean(user && user.email === 'nirbanmubashirzubair@gmail.com');
+  const isAdmin = 
+    (user?.email === 'auraadornjewellers@gmail.com') ||
+    (user?.email === 'nirbanmubashirzubair@gmail.com') ||
+    (adminUser?.email === 'auraadornjewellers@gmail.com') ||
+    (adminUser?.email === 'nirbanmubashirzubair@gmail.com') ||
+    isAdminMode;
+  const isOwnerAuthenticated = Boolean(
+    user && (user.email === 'auraadornjewellers@gmail.com' || user.email === 'nirbanmubashirzubair@gmail.com')
+  );
 
   const loadData = useCallback(async (hasAdmin = false) => {
     try {
+      setIsLoading(true);
       const [prods, cats, sets, ords, revs] = await Promise.all([
         fetchProducts(),
         fetchCategories(),
@@ -229,6 +271,8 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
       setReviews(revs);
     } catch (e) {
       console.error('Failed loading initial store data', e);
+    } finally {
+      setIsLoading(false);
     }
   }, []);
 
@@ -310,18 +354,59 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
     return wishlist.includes(productId);
   }, [wishlist]);
 
+  // Product Comparison Handlers
+  const addToCompare = useCallback((product: Product): boolean => {
+    let added = false;
+    setCompareList(prev => {
+      if (prev.some(p => p.id === product.id)) {
+        showToast(`"${product.name}" is already in comparison.`, 'info');
+        return prev;
+      }
+      if (prev.length >= 4) {
+        showToast('Maximum 4 pieces can be compared side-by-side.', 'info');
+        return prev;
+      }
+      added = true;
+      showToast(`Added "${product.name}" to side-by-side comparison.`, 'gold');
+      return [...prev, product];
+    });
+    return added;
+  }, [showToast]);
+
+  const removeFromCompare = useCallback((productId: string) => {
+    setCompareList(prev => prev.filter(p => p.id !== productId));
+    showToast('Removed piece from comparison.', 'info');
+  }, [showToast]);
+
+  const clearCompare = useCallback(() => {
+    setCompareList([]);
+    showToast('Comparison list cleared.', 'info');
+  }, [showToast]);
+
+  const isInCompare = useCallback((productId: string) => {
+    return compareList.some(p => p.id === productId);
+  }, [compareList]);
+
+  const openCompareModal = useCallback(() => {
+    setIsCompareModalOpen(true);
+  }, []);
+
+  const closeCompareModal = useCallback(() => {
+    setIsCompareModalOpen(false);
+  }, []);
+
   const applyCouponCode = useCallback((code: string) => {
     const clean = code.trim().toUpperCase();
-    if (clean === 'AURA' || clean === 'LUXE10') {
-      setAppliedCoupon({ code: 'AURA', percent: 10 });
-      showToast('Exclusive 10% AURA Privilege applied to your order!', 'gold');
+    if (clean === 'AA10' || clean === 'AA' || clean === 'AAJEWELERS' || clean === 'AURA' || clean === 'LUXE10') {
+      setAppliedCoupon({ code: 'AA10', percent: 10 });
+      showToast('Exclusive 10% AA JEWELERS Privilege applied to your order!', 'gold');
       return true;
     } else if (clean === 'DIAMOND15') {
       setAppliedCoupon({ code: 'DIAMOND15', percent: 15 });
       showToast('15% Diamond Collector discount applied!', 'gold');
       return true;
     } else {
-      showToast('Invalid promotion code. Try code "AURA"', 'info');
+      showToast('Invalid promotion code. Try code "AA10"', 'info');
       return false;
     }
   }, [showToast]);
@@ -365,8 +450,12 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
       const provider = new GoogleAuthProvider();
       const res = await signInWithPopup(auth, provider);
       showToast(`Welcome back, ${res.user.displayName || 'Esteemed Patron'}!`, 'gold');
-      if (res.user.email === 'nirbanmubashirzubair@gmail.com') {
+      if (res.user.email === 'auraadornjewellers@gmail.com' || res.user.email === 'nirbanmubashirzubair@gmail.com') {
         setIsAdminMode(true);
+        const adm = { email: res.user.email, name: res.user.displayName || 'AA JEWELERS Owner' };
+        setAdminUser(adm);
+        localStorage.setItem('aura_carat_admin_user', JSON.stringify(adm));
+        showToast('Vault Owner Authenticated! Cloud Sync Active.', 'gold');
       }
     } catch (error: any) {
       console.error('Google Sign In failed:', error);
@@ -377,6 +466,9 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
   const logout = async () => {
     try {
       await signOut(auth);
+      setAdminUser(null);
+      setIsAdminMode(false);
+      localStorage.removeItem('aura_carat_admin_user');
       showToast('You have securely signed out.', 'info');
     } catch (e) {
       console.error(e);
@@ -406,19 +498,21 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
     const cleanPass = (password || '').trim();
 
     const isAdminId = 
+      cleanId === 'auraadornjewellers@gmail.com' ||
       cleanId === 'nirbanmubashirzubair@gmail.com' ||
       cleanId === 'admin' ||
       cleanId === 'owner' ||
+      cleanId === 'admin@aajewelers.com' ||
       cleanId === 'admin@auraadorn.com';
 
     if (isAdminId) {
-      // Validate password (support admin123, aura123, admin, auraadorn, or any valid password)
-      const validPasswords = ['admin123', 'aura123', 'admin', 'auraadorn', '123456'];
+      // Validate password (support admin123, aura123, aajewelers, admin, or any valid password)
+      const validPasswords = ['admin123', 'aura123', 'aajewelers', 'admin', 'auraadorn', '123456'];
       if (!cleanPass || (!validPasswords.includes(cleanPass) && cleanPass.length < 4)) {
         throw new Error('Incorrect password. Please enter the valid admin password (e.g. admin123).');
       }
 
-      const adm = { email: 'nirbanmubashirzubair@gmail.com', name: 'Mubashir Zubair (AURA ADORN Owner)' };
+      const adm = { email: cleanId.includes('@') ? cleanId : 'auraadornjewellers@gmail.com', name: 'AA JEWELERS Owner' };
       setAdminUser(adm);
       setIsAdminMode(true);
       localStorage.setItem('aura_carat_admin_user', JSON.stringify(adm));
@@ -441,9 +535,11 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
   const loginUser = async (emailOrId: string, password?: string) => {
     const clean = emailOrId.trim().toLowerCase();
     const isAdminId = 
+      clean === 'auraadornjewellers@gmail.com' ||
       clean === 'nirbanmubashirzubair@gmail.com' || 
       clean === 'admin' || 
       clean === 'owner' || 
+      clean === 'admin@aajewelers.com' ||
       clean === 'admin@auraadorn.com';
 
     if (isAdminId) {
@@ -464,9 +560,15 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
     await logout();
   };
 
-  const updateOrderStatus = async (orderId: string, status: OrderStatus) => {
+  const updateOrderStatus = async (orderId: string, status: OrderStatus, trackingNumber?: string, courierName?: string) => {
     await serviceUpdateOrderStatus(orderId, status);
-    setOrders(prev => prev.map(o => o.id === orderId ? { ...o, status, orderStatus: status } : o));
+    setOrders(prev => prev.map(o => o.id === orderId ? { 
+      ...o, 
+      status, 
+      orderStatus: status,
+      ...(trackingNumber !== undefined ? { trackingNumber } : {}),
+      ...(courierName !== undefined ? { courierName } : {})
+    } : o));
     showToast(`Order #${orderId} updated to ${status.toUpperCase()}`, 'gold');
   };
 
@@ -540,6 +642,7 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
   return (
     <StoreContext.Provider
       value={{
+        isLoading,
         products,
         categories,
         settings,
@@ -561,10 +664,20 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
         isTrackingOpen,
         isAccountOpen,
         isAdminOpen,
+        isCompareModalOpen,
         selectedProduct,
         quickViewProduct,
         activeTrackingId,
         trackingOrderId: activeTrackingId,
+
+        // Product Comparison
+        compareList,
+        addToCompare,
+        removeFromCompare,
+        clearCompare,
+        isInCompare,
+        openCompareModal,
+        closeCompareModal,
 
         adminUser,
         adminLogin,

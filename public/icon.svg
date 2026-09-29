@@ -1,28 +1,75 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
   <defs>
-    <linearGradient id="goldGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" stop-color="#F2DFB8" />
-      <stop offset="50%" stop-color="#C9A25D" />
-      <stop offset="100%" stop-color="#8C6928" />
+    <radialGradient id="bgGrad" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#14120F" />
+      <stop offset="75%" stop-color="#0B0A08" />
+      <stop offset="100%" stop-color="#050403" />
+    </radialGradient>
+    <linearGradient id="goldRim" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#F5E4BE" />
+      <stop offset="35%" stop-color="#D4AF37" />
+      <stop offset="65%" stop-color="#AA771C" />
+      <stop offset="100%" stop-color="#F2DFB8" />
     </linearGradient>
-    <linearGradient id="darkGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" stop-color="#1F1B18" />
-      <stop offset="100%" stop-color="#120F0D" />
+    <linearGradient id="goldText" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#FDF3DA" />
+      <stop offset="50%" stop-color="#E5C378" />
+      <stop offset="100%" stop-color="#A67C2E" />
     </linearGradient>
   </defs>
-  <rect width="512" height="512" rx="128" fill="url(#darkGrad)" />
-  <circle cx="256" cy="256" r="210" fill="none" stroke="url(#goldGrad)" stroke-width="3" opacity="0.4" />
-  <!-- Faceted Diamond Crown -->
-  <g transform="translate(136, 120)">
-    <polygon points="120,20 180,90 60,90" fill="url(#goldGrad)" opacity="0.95" />
-    <polygon points="120,20 60,90 10,90 40,20" fill="url(#goldGrad)" opacity="0.8" />
-    <polygon points="120,20 180,90 230,90 200,20" fill="url(#goldGrad)" opacity="0.8" />
-    <!-- Pavilion & Culet -->
-    <polygon points="10,90 60,90 120,240" fill="url(#goldGrad)" opacity="0.85" />
-    <polygon points="60,90 180,90 120,240" fill="url(#goldGrad)" opacity="0.98" />
-    <polygon points="180,90 230,90 120,240" fill="url(#goldGrad)" opacity="0.85" />
+
+  <!-- Outer Background Circle -->
+  <circle cx="256" cy="256" r="250" fill="url(#bgGrad)" />
+  
+  <!-- Outer Gold Concentric Rims -->
+  <circle cx="256" cy="256" r="244" fill="none" stroke="url(#goldRim)" stroke-width="4.5" />
+  <circle cx="256" cy="256" r="236" fill="none" stroke="url(#goldRim)" stroke-width="1.5" opacity="0.6" />
+  <circle cx="256" cy="256" r="226" fill="none" stroke="url(#goldRim)" stroke-width="0.8" opacity="0.4" />
+
+  <!-- Monogram AA Centerpiece -->
+  <g transform="translate(256, 175) scale(1.15)">
+    <!-- First Letter A -->
+    <path d="M-60,50 C-68,48 -75,40 -70,28 L-32,-65 C-28,-74 -20,-78 -12,-78 C-4,-78 4,-74 8,-65 L30,-12" fill="none" stroke="url(#goldRim)" stroke-width="10" stroke-linecap="round" />
+    <path d="M-72,25 C-60,20 -40,15 0,15" fill="none" stroke="url(#goldRim)" stroke-width="6" stroke-linecap="round" />
+    
+    <!-- Second Intertwined Letter A -->
+    <path d="M-10,50 L28,-65 C32,-74 40,-78 48,-78 C56,-78 64,-74 68,-65 L98,28 C102,40 96,48 88,50" fill="none" stroke="url(#goldRim)" stroke-width="10" stroke-linecap="round" />
+    <path d="M8,15 C35,15 65,20 85,25" fill="none" stroke="url(#goldRim)" stroke-width="6" stroke-linecap="round" />
+
+    <!-- Sparkle Star on Upper Right of Second A -->
+    <g transform="translate(68, -78)">
+      <polygon points="0,-18 3,-3 18,0 3,3 0,18 -3,3 -18,0 -3,-3" fill="url(#goldText)" />
+      <circle cx="0" cy="0" r="2" fill="#FFFFFF" />
+    </g>
   </g>
-  <!-- Brand Initials -->
-  <text x="256" y="420" font-family="'Cormorant Garamond', Georgia, serif" font-size="34" font-weight="600" letter-spacing="6" fill="#E6D4AF" text-anchor="middle">AURA &amp; CARAT</text>
-  <text x="256" y="445" font-family="'Montserrat', sans-serif" font-size="13" font-weight="400" letter-spacing="8" fill="#C9A25D" text-anchor="middle">HAUTE JOAILLERIE</text>
+
+  <!-- Typography: JEWELLERS -->
+  <text x="256" y="292" font-family="'Cinzel', 'Playfair Display', Georgia, serif" font-size="34" font-weight="700" letter-spacing="14" fill="url(#goldText)" text-anchor="middle">JEWELLERS</text>
+
+  <!-- Decorative Filigree Divider -->
+  <g transform="translate(256, 320)" stroke="url(#goldRim)" stroke-width="1.5" fill="none">
+    <path d="M-130,0 L-40,0" opacity="0.6" />
+    <path d="M40,0 L130,0" opacity="0.6" />
+    <circle cx="0" cy="0" r="3.5" fill="url(#goldRim)" />
+    <path d="M-30,-6 C-20,-12 -10,-8 0,0 C10,-8 20,-12 30,-6" stroke-width="1.8" />
+    <path d="M-30,6 C-20,12 -10,8 0,0 C10,8 20,12 30,6" stroke-width="1.8" />
+  </g>
+
+  <!-- Secondary Taglines -->
+  <text x="256" y="358" font-family="'Montserrat', sans-serif" font-size="10.5" font-weight="500" letter-spacing="4.5" fill="#E6D4AF" text-anchor="middle">TIMELESS BEAUTY. REFINED ELEGANCE.</text>
+  <text x="256" y="380" font-family="'Montserrat', sans-serif" font-size="9.5" font-weight="600" letter-spacing="5" fill="#C9A25D" text-anchor="middle">STAINLESS STEEL JEWELLERY</text>
+
+  <!-- Faceted Diamond Icon at Bottom -->
+  <g transform="translate(256, 422)" stroke="url(#goldRim)" stroke-width="1.6" fill="none">
+    <!-- Diamond Table & Crown -->
+    <polygon points="-24,-14 24,-14 36,0 -36,0" fill="url(#goldRim)" fill-opacity="0.1" />
+    <!-- Pavilion to Culet -->
+    <polygon points="-36,0 36,0 0,26" fill="url(#goldRim)" fill-opacity="0.15" />
+    <!-- Internal Facet Lines -->
+    <line x1="-12" y1="-14" x2="-18" y2="0" />
+    <line x1="12" y1="-14" x2="18" y2="0" />
+    <line x1="-18" y1="0" x2="0" y2="26" />
+    <line x1="18" y1="0" x2="0" y2="26" />
+    <line x1="0" y1="0" x2="0" y2="26" />
+  </g>
 </svg>

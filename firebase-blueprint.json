@@ -124,6 +124,19 @@
         "createdAt": { "type": "string" }
       },
       "required": ["email", "role"]
+    },
+    "Subscriber": {
+      "title": "Subscriber",
+      "description": "Newsletter and launch list subscriber",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128 },
+        "email": { "type": "string", "maxLength": 150 },
+        "subscribedAt": { "type": "string" },
+        "source": { "type": "string", "maxLength": 100 },
+        "active": { "type": "boolean" }
+      },
+      "required": ["email", "subscribedAt"]
     }
   },
   "firestore": {
@@ -154,6 +167,10 @@
     "/admins/{adminId}": {
       "schema": "Admin",
       "description": "Authorized admin users lookup"
+    },
+    "/subscribers/{subscriberId}": {
+      "schema": "Subscriber",
+      "description": "Newsletter subscribers for launch alerts"
     }
   }
 }

@@ -1,25 +1,46 @@
 import React, { useState, useMemo } from 'react';
 import { useStore } from '../context/StoreContext';
 import { ProductCard } from './ProductCard';
-import { SlidersHorizontal, ArrowUpDown, X, Sparkles } from 'lucide-react';
+import { ProductCardSkeleton } from './SkeletonLoader';
+import { SlidersHorizontal, ArrowUpDown, X, Sparkles, Crown } from 'lucide-react';
 import { Product } from '../types';
+import { getProductLoyaltyTier } from './LoyaltyBadge';
 
 interface ProductGridProps {
   selectedCategory: string;
   onSelectCategory: (cat: string) => void;
+  searchQuery?: string;
+  onClearSearch?: () => void;
 }
 
-export const ProductGrid: React.FC<ProductGridProps> = ({ selectedCategory, onSelectCategory }) => {
-  const { products, categories } = useStore();
+export const ProductGrid: React.FC<ProductGridProps> = ({ 
+  selectedCategory, 
+  onSelectCategory,
+  searchQuery = '',
+  onClearSearch
+}) => {
+  const { products, categories, isLoading } = useStore();
 
   const [sortBy, setSortBy] = useState<'featured' | 'price-low' | 'price-high' | 'newest' | 'rating' | 'discount'>('featured');
   const [maxPrice, setMaxPrice] = useState<number>(7000);
   const [onlyInStock, setOnlyInStock] = useState<boolean>(false);
   const [filterDrawerOpen, setFilterDrawerOpen] = useState<boolean>(false);
 
-  // Computed filtered & sorted products
+  // Computed filtered & sorted products in real-time
   const filteredProducts = useMemo(() => {
     let list: Product[] = [...products];
+
+    // Filter by Real-time Search Query
+    if (searchQuery.trim()) {
+      const q = searchQuery.toLowerCase();
+      list = list.filter(p => 
+        p.name.toLowerCase().includes(q) ||
+        p.category.toLowerCase().includes(q) ||
+        (p.subCategory && p.subCategory.toLowerCase().includes(q)) ||
+        (p.details.stone && p.details.stone.toLowerCase().includes(q)) ||
+        (p.details.metal && p.details.metal.toLowerCase().includes(q))
+      );
+    }
 
     // Filter by Category
     if (selectedCategory && selectedCategory !== 'all') {
@@ -29,6 +50,8 @@ export const ProductGrid: React.FC<ProductGridProps> = ({ selectedCategory, onSe
         list = list.filter(p => p.discountPercentage > 0);
       } else if (selectedCategory === 'best-sellers') {
         list = list.filter(p => p.isBestSeller);
+      } else if (selectedCategory === 'exclusives') {
+        list = list.filter(p => Boolean(getProductLoyaltyTier(p)));
       } else {
         list = list.filter(p => p.category.toLowerCase() === selectedCategory.toLowerCase());
       }
@@ -66,28 +89,45 @@ export const ProductGrid: React.FC<ProductGridProps> = ({ selectedCategory, onSe
     }
 
     return list;
-  }, [products, selectedCategory, maxPrice, onlyInStock, sortBy]);
+  }, [products, searchQuery, selectedCategory, maxPrice, onlyInStock, sortBy]);
 
   return (
     <section id="products-section" className="py-16 sm:py-24 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
       {/* Title & Section Intro */}
-      <div className="flex flex-col md:flex-row md:items-end justify-between mb-8 pb-6 border-b border-[#EAE3D8] gap-4">
+      <div className="flex flex-col md:flex-row md:items-end justify-between mb-8 pb-6 border-b border-[#241F1A] gap-4">
         <div>
-          <div className="flex items-center gap-2 text-[#C9A25D] text-xs font-sans uppercase tracking-[0.25em] font-semibold mb-2">
+          <div className="flex items-center gap-2 text-[#E5C378] text-xs font-sans uppercase tracking-[0.25em] font-semibold mb-2">
             <Sparkles className="w-3.5 h-3.5" />
             <span>Master Collection</span>
           </div>
-          <h2 className="font-serif text-3xl sm:text-4xl text-[#1C1815] font-normal tracking-tight">
+          <h2 className="font-serif text-3xl sm:text-4xl text-[#FAF7F2] font-normal tracking-tight">
             {selectedCategory === 'all' || !selectedCategory
               ? 'All Haute Joaillerie Creations'
               : selectedCategory === 'new-arrivals'
               ? 'New Arrival Masterpieces'
               : selectedCategory === 'sale'
               ? 'Exclusive Privileges & Discounts'
+              : selectedCategory === 'exclusives'
+              ? 'Vault Exclusives & Limited Editions'
               : selectedCategory === 'best-sellers'
               ? 'Signature Best Sellers'
               : `${selectedCategory.charAt(0).toUpperCase() + selectedCategory.slice(1)} Portfolio`}
           </h2>
+          {searchQuery && (
+            <div className="flex items-center gap-2 mt-2">
+              <span className="text-xs text-[#A89F91]">
+                Filtered in real-time by: <span className="font-semibold text-[#E5C378]">"{searchQuery}"</span> ({filteredProducts.length} pieces)
+              </span>
+              {onClearSearch && (
+                <button 
+                  onClick={onClearSearch}
+                  className="text-xs text-[#E5C378] hover:underline font-medium cursor-pointer ml-1"
+                >
+                  Clear search
+                </button>
+              )}
+            </div>
+          )}
         </div>
 
         {/* Filter and Sort controls */}
@@ -96,28 +136,28 @@ export const ProductGrid: React.FC<ProductGridProps> = ({ selectedCategory, onSe
             onClick={() => setFilterDrawerOpen(!filterDrawerOpen)}
             className={`px-4 py-2 rounded-full border text-xs font-sans font-medium flex items-center gap-2 transition-colors cursor-pointer ${
               filterDrawerOpen 
-                ? 'bg-[#1C1815] text-[#FAF8F5] border-[#1C1815]' 
-                : 'bg-white text-[#2C2420] border-[#EAE3D8] hover:border-[#C9A25D]'
+                ? 'bg-gradient-to-r from-[#C9A25D] to-[#E5C378] text-[#0B0A08] font-bold border-[#E5C378]' 
+                : 'bg-[#14120F] text-[#FAF7F2] border-[#2E2822] hover:border-[#C9A25D]'
             }`}
           >
-            <SlidersHorizontal className="w-3.5 h-3.5 text-[#C9A25D]" />
+            <SlidersHorizontal className="w-3.5 h-3.5 text-[#E5C378]" />
             <span>Refine ({filteredProducts.length})</span>
           </button>
 
           {/* Sort Dropdown */}
-          <div className="relative flex items-center bg-white border border-[#EAE3D8] rounded-full px-3 py-1.5">
-            <ArrowUpDown className="w-3.5 h-3.5 text-[#8C7662] mr-2 shrink-0" />
+          <div className="relative flex items-center bg-[#14120F] border border-[#2E2822] rounded-full px-3 py-1.5">
+            <ArrowUpDown className="w-3.5 h-3.5 text-[#A89F91] mr-2 shrink-0" />
             <select
               value={sortBy}
               onChange={(e) => setSortBy(e.target.value as any)}
-              className="text-xs font-sans font-medium text-[#2C2420] bg-transparent focus:outline-none cursor-pointer pr-2"
+              className="text-xs font-sans font-medium text-[#FAF7F2] bg-transparent focus:outline-none cursor-pointer pr-2"
             >
-              <option value="featured">Featured & Curated</option>
-              <option value="price-low">Price: Low to High</option>
-              <option value="price-high">Price: High to Low</option>
-              <option value="newest">Newest Additions</option>
-              <option value="rating">Highest Rated</option>
-              <option value="discount">Highest Discount</option>
+              <option value="featured" className="bg-[#14120F] text-[#FAF7F2]">Featured & Curated</option>
+              <option value="price-low" className="bg-[#14120F] text-[#FAF7F2]">Price: Low to High</option>
+              <option value="price-high" className="bg-[#14120F] text-[#FAF7F2]">Price: High to Low</option>
+              <option value="newest" className="bg-[#14120F] text-[#FAF7F2]">Newest Additions</option>
+              <option value="rating" className="bg-[#14120F] text-[#FAF7F2]">Highest Rated</option>
+              <option value="discount" className="bg-[#14120F] text-[#FAF7F2]">Highest Discount</option>
             </select>
           </div>
         </div>
@@ -125,12 +165,12 @@ export const ProductGrid: React.FC<ProductGridProps> = ({ selectedCategory, onSe
 
       {/* Filter Drawer / Accordion */}
       {filterDrawerOpen && (
-        <div className="mb-8 p-6 bg-white border border-[#EAE3D8] rounded-2xl shadow-sm animate-in fade-in slide-in-from-top-2 duration-300">
-          <div className="flex items-center justify-between pb-4 mb-4 border-b border-[#F3EFEA]">
-            <h3 className="font-serif text-lg font-medium text-[#1C1815]">Filter Collection</h3>
+        <div className="mb-8 p-6 bg-[#14120F] border border-[#C9A25D]/30 rounded-2xl shadow-xl animate-in fade-in slide-in-from-top-2 duration-300">
+          <div className="flex items-center justify-between pb-4 mb-4 border-b border-[#241F1A]">
+            <h3 className="font-serif text-lg font-medium text-[#FAF7F2]">Filter Collection</h3>
             <button
               onClick={() => setFilterDrawerOpen(false)}
-              className="text-stone-400 hover:text-stone-700 p-1 cursor-pointer"
+              className="text-stone-400 hover:text-[#E5C378] p-1 cursor-pointer"
             >
               <X className="w-5 h-5" />
             </button>
@@ -139,7 +179,7 @@ export const ProductGrid: React.FC<ProductGridProps> = ({ selectedCategory, onSe
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
             {/* Category Quick Filter */}
             <div>
-              <label className="block text-xs uppercase tracking-widest text-[#8C7662] font-semibold mb-2">
+              <label className="block text-xs uppercase tracking-widest text-[#E5C378] font-semibold mb-2">
                 Category
               </label>
               <div className="flex flex-wrap gap-1.5">
@@ -147,8 +187,8 @@ export const ProductGrid: React.FC<ProductGridProps> = ({ selectedCategory, onSe
                   onClick={() => onSelectCategory('all')}
                   className={`px-3 py-1.5 rounded-full text-xs font-sans transition-colors cursor-pointer ${
                     selectedCategory === 'all' || !selectedCategory
-                      ? 'bg-[#C9A25D] text-white font-semibold'
-                      : 'bg-[#FAF8F5] text-stone-700 hover:bg-[#F0EAE1]'
+                      ? 'bg-gradient-to-r from-[#C9A25D] to-[#E5C378] text-[#0B0A08] font-bold'
+                      : 'bg-[#181613] text-[#D8CDC0] hover:bg-[#221E19] border border-[#2E2822]'
                   }`}
                 >
                   All
@@ -159,8 +199,8 @@ export const ProductGrid: React.FC<ProductGridProps> = ({ selectedCategory, onSe
                     onClick={() => onSelectCategory(c.slug)}
                     className={`px-3 py-1.5 rounded-full text-xs font-sans transition-colors cursor-pointer ${
                       selectedCategory === c.slug
-                        ? 'bg-[#C9A25D] text-white font-semibold'
-                        : 'bg-[#FAF8F5] text-stone-700 hover:bg-[#F0EAE1]'
+                        ? 'bg-gradient-to-r from-[#C9A25D] to-[#E5C378] text-[#0B0A08] font-bold'
+                        : 'bg-[#181613] text-[#D8CDC0] hover:bg-[#221E19] border border-[#2E2822]'
                     }`}
                   >
                     {c.name}
@@ -172,10 +212,10 @@ export const ProductGrid: React.FC<ProductGridProps> = ({ selectedCategory, onSe
             {/* Price Range Slider */}
             <div>
               <div className="flex items-center justify-between mb-2">
-                <label className="text-xs uppercase tracking-widest text-[#8C7662] font-semibold">
+                <label className="text-xs uppercase tracking-widest text-[#E5C378] font-semibold">
                   Max Budget
                 </label>
-                <span className="text-sm font-serif font-semibold text-[#1C1815]">
+                <span className="text-sm font-serif font-semibold text-[#E5C378]">
                   ${maxPrice.toLocaleString()}
                 </span>
               </div>
@@ -188,7 +228,7 @@ export const ProductGrid: React.FC<ProductGridProps> = ({ selectedCategory, onSe
                 onChange={(e) => setMaxPrice(Number(e.target.value))}
                 className="w-full accent-[#C9A25D] cursor-pointer"
               />
-              <div className="flex justify-between text-[11px] text-stone-400 mt-1">
+              <div className="flex justify-between text-[11px] text-stone-500 mt-1">
                 <span>$500</span>
                 <span>$3,500</span>
                 <span>$7,000+</span>
@@ -204,11 +244,11 @@ export const ProductGrid: React.FC<ProductGridProps> = ({ selectedCategory, onSe
                   onChange={(e) => setOnlyInStock(e.target.checked)}
                   className="w-4 h-4 accent-[#C9A25D] rounded"
                 />
-                <span className="text-xs font-sans font-medium text-[#2C2420]">
+                <span className="text-xs font-sans font-medium text-[#FAF7F2]">
                   Show Ready in Boutique Vault Only
                 </span>
               </label>
-              <p className="text-[11px] text-stone-400 mt-1 pl-7">
+              <p className="text-[11px] text-[#8C8275] mt-1 pl-7">
                 Hides designs currently in bespoke casting.
               </p>
             </div>
@@ -217,11 +257,17 @@ export const ProductGrid: React.FC<ProductGridProps> = ({ selectedCategory, onSe
       )}
 
       {/* Products Grid */}
-      {filteredProducts.length === 0 ? (
-        <div className="py-20 text-center bg-white rounded-3xl border border-[#EAE3D8] p-8 max-w-md mx-auto">
-          <Sparkles className="w-8 h-8 text-[#C9A25D] mx-auto mb-3" />
-          <h3 className="font-serif text-xl text-[#1C1815] mb-2">No Matching Jewels Found</h3>
-          <p className="text-xs font-sans text-[#8C7662] mb-6">
+      {isLoading ? (
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 sm:gap-8">
+          {Array.from({ length: 8 }).map((_, idx) => (
+            <ProductCardSkeleton key={`skeleton-${idx}`} />
+          ))}
+        </div>
+      ) : filteredProducts.length === 0 ? (
+        <div className="py-20 text-center bg-[#14120F] rounded-3xl border border-[#C9A25D]/30 p-8 max-w-md mx-auto shadow-2xl">
+          <Sparkles className="w-8 h-8 text-[#E5C378] mx-auto mb-3" />
+          <h3 className="font-serif text-xl text-[#FAF7F2] mb-2">No Matching Jewels Found</h3>
+          <p className="text-xs font-sans text-[#A89F91] mb-6">
             Try adjusting your price range or explore all categories.
           </p>
           <button
@@ -230,15 +276,15 @@ export const ProductGrid: React.FC<ProductGridProps> = ({ selectedCategory, onSe
               setMaxPrice(7000);
               setOnlyInStock(false);
             }}
-            className="px-6 py-2.5 bg-[#C9A25D] text-[#181412] text-xs font-sans font-semibold rounded-full uppercase tracking-wider"
+            className="px-6 py-2.5 bg-gradient-to-r from-[#C9A25D] to-[#E5C378] text-[#0B0A08] text-xs font-sans font-bold rounded-full uppercase tracking-wider hover:brightness-110 transition-all cursor-pointer shadow-md"
           >
             Reset Filters
           </button>
         </div>
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 sm:gap-8">
-          {filteredProducts.map(product => (
-            <ProductCard key={product.id} product={product} />
+          {filteredProducts.map((product, idx) => (
+            <ProductCard key={product.id} product={product} index={idx} />
           ))}
         </div>
       )}

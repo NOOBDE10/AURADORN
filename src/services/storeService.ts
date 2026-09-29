@@ -13,7 +13,7 @@ import {
   onSnapshot 
 } from 'firebase/firestore';
 import { db, auth, handleFirestoreError, OperationType } from '../firebase/config';
-import { Product, Category, Order, OrderStatus, Review, StoreSettings, CustomerProfile } from '../types';
+import { Product, Category, Order, OrderStatus, Review, StoreSettings, CustomerProfile, NewsletterSubscriber } from '../types';
 import { INITIAL_PRODUCTS, INITIAL_CATEGORIES, INITIAL_SETTINGS, INITIAL_REVIEWS } from '../data/initialData';
 
 const LOCAL_PRODUCTS_KEY = 'aura_carat_products';
@@ -21,6 +21,7 @@ const LOCAL_CATEGORIES_KEY = 'aura_carat_categories';
 const LOCAL_SETTINGS_KEY = 'aura_carat_settings';
 const LOCAL_ORDERS_KEY = 'aura_carat_orders';
 const LOCAL_REVIEWS_KEY = 'aura_carat_reviews';
+const LOCAL_SUBSCRIBERS_KEY = 'aura_carat_subscribers';
 
 // Helper to get local data
 function getLocal<T>(key: string, fallback: T): T {
@@ -41,6 +42,29 @@ function setLocal<T>(key: string, val: T): void {
   }
 }
 
+/**
+ * Recursively strips keys with `undefined` values so Firestore setDoc/updateDoc
+ * never fails with "Unsupported field value: undefined".
+ */
+export function sanitizeForFirestore<T>(val: T): T {
+  if (val === null || val === undefined) {
+    return val;
+  }
+  if (Array.isArray(val)) {
+    return val.map(item => sanitizeForFirestore(item)) as unknown as T;
+  }
+  if (typeof val === 'object' && !(val instanceof Date)) {
+    const res: Record<string, any> = {};
+    for (const [k, v] of Object.entries(val)) {
+      if (v !== undefined) {
+        res[k] = sanitizeForFirestore(v);
+      }
+    }
+    return res as unknown as T;
+  }
+  return val;
+}
+
 // ---------------- PRODUCTS SERVICE ----------------
 
 export async function fetchProducts(): Promise<Product[]> {
@@ -59,9 +83,16 @@ export async function fetchProducts(): Promise<Product[]> {
     handleFirestoreError(error, OperationType.LIST, 'products');
   }
 
-  // If Firestore collection is empty or unreachable, return local or initial
+  // If Firestore collection is empty or unreachable, return local merged with initial
   const local = getLocal<Product[]>(LOCAL_PRODUCTS_KEY, INITIAL_PRODUCTS);
-  return local.length > 0 ? local : INITIAL_PRODUCTS;
+  const existingIds = new Set(local.map(p => p.id));
+  const merged = [...local];
+  for (const initP of INITIAL_PRODUCTS) {
+    if (!existingIds.has(initP.id)) {
+      merged.push(initP);
+    }
+  }
+  return merged;
 }
 
 export async function saveProduct(product: Product): Promise<void> {
@@ -75,14 +106,17 @@ export async function saveProduct(product: Product): Promise<void> {
   }
   setLocal(LOCAL_PRODUCTS_KEY, existing);
 
-  // Sync to Firestore
-  try {
-    await setDoc(doc(db, 'products', product.id), {
-      ...product,
-      updatedAt: new Date().toISOString()
-    });
-  } catch (error) {
-    handleFirestoreError(error, OperationType.WRITE, `products/${product.id}`);
+  // Sync to Firestore only when an authenticated session is active
+  if (auth.currentUser) {
+    try {
+      const cleanProd = sanitizeForFirestore({
+        ...product,
+        updatedAt: new Date().toISOString()
+      });
+      await setDoc(doc(db, 'products', product.id), cleanProd);
+    } catch (error) {
+      handleFirestoreError(error, OperationType.WRITE, `products/${product.id}`);
+    }
   }
 }
 
@@ -91,10 +125,12 @@ export async function removeProduct(productId: string): Promise<void> {
   const filtered = existing.filter(p => p.id !== productId);
   setLocal(LOCAL_PRODUCTS_KEY, filtered);
 
-  try {
-    await deleteDoc(doc(db, 'products', productId));
-  } catch (error) {
-    handleFirestoreError(error, OperationType.DELETE, `products/${productId}`);
+  if (auth.currentUser) {
+    try {
+      await deleteDoc(doc(db, 'products', productId));
+    } catch (error) {
+      handleFirestoreError(error, OperationType.DELETE, `products/${productId}`);
+    }
   }
 }
 
@@ -128,10 +164,13 @@ export async function saveCategory(category: Category): Promise<void> {
   }
   setLocal(LOCAL_CATEGORIES_KEY, existing);
 
-  try {
-    await setDoc(doc(db, 'categories', category.id), category);
-  } catch (error) {
-    handleFirestoreError(error, OperationType.WRITE, `categories/${category.id}`);
+  if (auth.currentUser) {
+    try {
+      const cleanCat = sanitizeForFirestore(category);
+      await setDoc(doc(db, 'categories', category.id), cleanCat);
+    } catch (error) {
+      handleFirestoreError(error, OperationType.WRITE, `categories/${category.id}`);
+    }
   }
 }
 
@@ -139,10 +178,12 @@ export async function removeCategory(categoryId: string): Promise<void> {
   const existing = getLocal<Category[]>(LOCAL_CATEGORIES_KEY, INITIAL_CATEGORIES);
   setLocal(LOCAL_CATEGORIES_KEY, existing.filter(c => c.id !== categoryId));
 
-  try {
-    await deleteDoc(doc(db, 'categories', categoryId));
-  } catch (error) {
-    handleFirestoreError(error, OperationType.DELETE, `categories/${categoryId}`);
+  if (auth.currentUser) {
+    try {
+      await deleteDoc(doc(db, 'categories', categoryId));
+    } catch (error) {
+      handleFirestoreError(error, OperationType.DELETE, `categories/${categoryId}`);
+    }
   }
 }
 
@@ -185,6 +226,11 @@ export async function placeOrder(orderData: Omit<Order, 'id' | 'createdAt' | 'st
     ]
   };
 
+  // If customerId is undefined or empty, delete the key so Firestore never receives undefined
+  if (!newOrder.customerId) {
+    delete (newOrder as any).customerId;
+  }
+
   // Save to local cache first
   const existingOrders = getLocal<Order[]>(LOCAL_ORDERS_KEY, []);
   existingOrders.unshift(newOrder);
@@ -192,27 +238,32 @@ export async function placeOrder(orderData: Omit<Order, 'id' | 'createdAt' | 'st
 
   // Save immediately to Firestore
   try {
-    await setDoc(doc(db, 'orders', orderId), newOrder);
+    const cleanPayload = sanitizeForFirestore(newOrder);
+    await setDoc(doc(db, 'orders', orderId), cleanPayload);
   } catch (error) {
     handleFirestoreError(error, OperationType.CREATE, `orders/${orderId}`);
   }
 
-  // Deduct stock for purchased items
+  // Deduct stock for purchased items in local cache
   try {
     const products = getLocal<Product[]>(LOCAL_PRODUCTS_KEY, INITIAL_PRODUCTS);
+    let stockModified = false;
     for (const item of newOrder.items) {
       const prod = products.find(p => p.id === item.productId);
       if (prod) {
         prod.stock = Math.max(0, prod.stock - item.quantity);
         if (prod.stock === 0) prod.status = 'out_of_stock';
-        saveProduct(prod).catch(() => {});
+        stockModified = true;
       }
+    }
+    if (stockModified) {
+      setLocal(LOCAL_PRODUCTS_KEY, products);
     }
   } catch (e) {
     console.warn('Stock update warning:', e);
   }
 
-  // Trigger Admin Notification (Store Owner: nirbanmubashirzubair@gmail.com)
+  // Trigger Admin Notification (Store Owner: auraadornjewellers@gmail.com)
   sendOwnerOrderNotification({
     orderId,
     customerName: newOrder.customerName,
@@ -221,7 +272,7 @@ export async function placeOrder(orderData: Omit<Order, 'id' | 'createdAt' | 'st
     address: `${newOrder.address}, ${newOrder.area}, ${newOrder.city} ${newOrder.postalCode || ''}`,
     totalAmount: newOrder.totalAmount,
     items: newOrder.items.map(i => ({ name: i.productName, quantity: i.quantity, price: i.price })),
-    storeOwnerEmail: 'nirbanmubashirzubair@gmail.com'
+    storeOwnerEmail: 'auraadornjewellers@gmail.com'
   });
 
   return newOrder;
@@ -300,14 +351,17 @@ export async function updateOrderStatus(orderId: string, newStatus: OrderStatus)
     setLocal(LOCAL_ORDERS_KEY, existingOrders);
   }
 
-  try {
-    await updateDoc(doc(db, 'orders', orderId), {
-      status: newStatus,
-      updatedAt: now,
-      trackingUpdates: order?.trackingUpdates || []
-    });
-  } catch (error) {
-    handleFirestoreError(error, OperationType.UPDATE, `orders/${orderId}`);
+  if (auth.currentUser) {
+    try {
+      const cleanUpdate = sanitizeForFirestore({
+        status: newStatus,
+        updatedAt: now,
+        trackingUpdates: order?.trackingUpdates || []
+      });
+      await updateDoc(doc(db, 'orders', orderId), cleanUpdate);
+    } catch (error) {
+      handleFirestoreError(error, OperationType.UPDATE, `orders/${orderId}`);
+    }
   }
 }
 
@@ -322,7 +376,10 @@ export async function fetchStoreSettings(): Promise<StoreSettings> {
       const normalized: StoreSettings = {
         ...INITIAL_SETTINGS,
         ...data,
-        brandName: 'AURA ADORN',
+        brandName: 'AA JEWELERS',
+        email: data.email || 'auraadornjewellers@gmail.com',
+        phone: data.phone || '+92 333 8282369',
+        whatsappNumber: data.whatsappNumber || '+923338282369',
         announcementText: data.announcementText?.includes('LUXE10') 
           ? INITIAL_SETTINGS.announcementText 
           : (data.announcementText || INITIAL_SETTINGS.announcementText)
@@ -337,7 +394,10 @@ export async function fetchStoreSettings(): Promise<StoreSettings> {
   return {
     ...INITIAL_SETTINGS,
     ...cached,
-    brandName: 'AURA ADORN',
+    brandName: 'AA JEWELERS',
+    email: cached.email || 'auraadornjewellers@gmail.com',
+    phone: cached.phone || '+92 333 8282369',
+    whatsappNumber: cached.whatsappNumber || '+923338282369',
     announcementText: cached.announcementText?.includes('LUXE10') 
       ? INITIAL_SETTINGS.announcementText 
       : (cached.announcementText || INITIAL_SETTINGS.announcementText)
@@ -346,10 +406,13 @@ export async function fetchStoreSettings(): Promise<StoreSettings> {
 
 export async function saveStoreSettings(settings: StoreSettings): Promise<void> {
   setLocal(LOCAL_SETTINGS_KEY, settings);
-  try {
-    await setDoc(doc(db, 'settings', 'general'), settings);
-  } catch (error) {
-    handleFirestoreError(error, OperationType.WRITE, 'settings/general');
+  if (auth.currentUser) {
+    try {
+      const cleanSettings = sanitizeForFirestore(settings);
+      await setDoc(doc(db, 'settings', 'general'), cleanSettings);
+    } catch (error) {
+      handleFirestoreError(error, OperationType.WRITE, 'settings/general');
+    }
   }
 }
 
@@ -384,7 +447,8 @@ export async function addReview(review: Omit<Review, 'id' | 'createdAt' | 'statu
   setLocal(LOCAL_REVIEWS_KEY, existing);
 
   try {
-    await setDoc(doc(db, 'reviews', newRev.id), newRev);
+    const cleanReview = sanitizeForFirestore(newRev);
+    await setDoc(doc(db, 'reviews', newRev.id), cleanReview);
   } catch (error) {
     handleFirestoreError(error, OperationType.CREATE, `reviews/${newRev.id}`);
   }
@@ -398,10 +462,12 @@ export async function updateReviewStatus(reviewId: string, status: 'approved' | 
   if (rev) rev.status = status;
   setLocal(LOCAL_REVIEWS_KEY, existing);
 
-  try {
-    await updateDoc(doc(db, 'reviews', reviewId), { status });
-  } catch (error) {
-    handleFirestoreError(error, OperationType.UPDATE, `reviews/${reviewId}`);
+  if (auth.currentUser) {
+    try {
+      await updateDoc(doc(db, 'reviews', reviewId), { status });
+    } catch (error) {
+      handleFirestoreError(error, OperationType.UPDATE, `reviews/${reviewId}`);
+    }
   }
 }
 
@@ -409,10 +475,12 @@ export async function deleteReview(reviewId: string): Promise<void> {
   const existing = getLocal<Review[]>(LOCAL_REVIEWS_KEY, INITIAL_REVIEWS);
   setLocal(LOCAL_REVIEWS_KEY, existing.filter(r => r.id !== reviewId));
 
-  try {
-    await deleteDoc(doc(db, 'reviews', reviewId));
-  } catch (error) {
-    handleFirestoreError(error, OperationType.DELETE, `reviews/${reviewId}`);
+  if (auth.currentUser) {
+    try {
+      await deleteDoc(doc(db, 'reviews', reviewId));
+    } catch (error) {
+      handleFirestoreError(error, OperationType.DELETE, `reviews/${reviewId}`);
+    }
   }
 }
 
@@ -435,3 +503,92 @@ export function sendOwnerOrderNotification(payload: OrderNotificationPayload) {
     console.error(e);
   }
 }
+
+// ---------------- NEWSLETTER SUBSCRIBERS SERVICE ----------------
+
+export async function subscribeNewsletter(
+  email: string, 
+  source: string = 'footer_newsletter'
+): Promise<{ success: boolean; message: string; alreadySubscribed?: boolean }> {
+  const cleanEmail = email.trim().toLowerCase();
+  
+  // Basic email validation regex
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  if (!emailRegex.test(cleanEmail)) {
+    return { success: false, message: 'Please provide a valid email address.' };
+  }
+
+  // Check local subscribers cache
+  const localSubscribers = getLocal<NewsletterSubscriber[]>(LOCAL_SUBSCRIBERS_KEY, []);
+  const existing = localSubscribers.find(s => s.email.toLowerCase() === cleanEmail);
+  if (existing) {
+    return { 
+      success: true, 
+      message: 'You are already on our private launch invitation list.', 
+      alreadySubscribed: true 
+    };
+  }
+
+  // Safe Firestore document ID
+  const sanitizedId = `sub_${cleanEmail.replace(/[^a-z0-9]/g, '_')}`;
+  const newSubscriber: NewsletterSubscriber = {
+    id: sanitizedId,
+    email: cleanEmail,
+    subscribedAt: new Date().toISOString(),
+    source,
+    active: true
+  };
+
+  // Save to local cache immediately
+  localSubscribers.unshift(newSubscriber);
+  setLocal(LOCAL_SUBSCRIBERS_KEY, localSubscribers);
+
+  // Sync to Firestore
+  try {
+    const cleanSubscriber = sanitizeForFirestore(newSubscriber);
+    await setDoc(doc(db, 'subscribers', sanitizedId), cleanSubscriber);
+  } catch (error) {
+    // If offline or permission issue, handle gracefully
+    console.warn('Firestore subscription sync notice:', error);
+  }
+
+  return {
+    success: true,
+    message: 'Welcome to the AA JEWELERS Private Salon. You are registered for upcoming product launch previews.'
+  };
+}
+
+export async function fetchSubscribers(isAdmin = false): Promise<NewsletterSubscriber[]> {
+  if (isAdmin && auth.currentUser) {
+    try {
+      const colRef = collection(db, 'subscribers');
+      const snapshot = await getDocs(colRef);
+      if (!snapshot.empty) {
+        const items: NewsletterSubscriber[] = [];
+        snapshot.forEach(docSnap => {
+          items.push({ id: docSnap.id, ...docSnap.data() } as NewsletterSubscriber);
+        });
+        setLocal(LOCAL_SUBSCRIBERS_KEY, items);
+        return items;
+      }
+    } catch (error) {
+      // In unauthenticated mode, gracefully use local
+      console.warn('Subscriber list retrieval note:', error);
+    }
+  }
+  return getLocal<NewsletterSubscriber[]>(LOCAL_SUBSCRIBERS_KEY, []);
+}
+
+export async function deleteSubscriber(id: string): Promise<void> {
+  const existing = getLocal<NewsletterSubscriber[]>(LOCAL_SUBSCRIBERS_KEY, []);
+  setLocal(LOCAL_SUBSCRIBERS_KEY, existing.filter(s => s.id !== id));
+
+  if (auth.currentUser) {
+    try {
+      await deleteDoc(doc(db, 'subscribers', id));
+    } catch (error) {
+      handleFirestoreError(error, OperationType.DELETE, `subscribers/${id}`);
+    }
+  }
+}
+

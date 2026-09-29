@@ -61,7 +61,7 @@ export const PWAInstallBanner: React.FC = () => {
         </div>
         <div className="flex-1 min-w-0">
           <h4 className="font-serif text-sm font-semibold text-white">
-            Install Aura & Carat Boutique App
+            Install AA JEWELERS Boutique App
           </h4>
           <p className="text-xs font-sans text-stone-300 mt-0.5">
             {isIOS 

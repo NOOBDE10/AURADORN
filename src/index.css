@@ -6,33 +6,228 @@
 }
 
 :root {
-  color-scheme: light;
+  color-scheme: dark;
+}
+
+/* 1. Ultra-Smooth Natural Scrolling Across the Entire Website */
+html {
+  scroll-behavior: smooth;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  background-color: #0B0A08;
+}
+
+/* Lenis smooth scrolling integration */
+html.lenis, 
+html.lenis body {
+  height: auto;
+  scroll-behavior: auto !important;
+}
+
+.lenis.lenis-smooth {
+  scroll-behavior: auto !important;
+}
+
+.lenis.lenis-smooth [data-lenis-prevent] {
+  overscroll-behavior: contain;
+}
+
+.lenis.lenis-stopped {
+  overflow: hidden;
+}
+
+.lenis.lenis-scrolling iframe {
+  pointer-events: none;
 }
 
 body {
   margin: 0;
   min-height: 100vh;
-  background-color: #FAF8F5;
-  color: #2C2420;
+  background-color: #0B0A08;
+  color: #FAF7F2;
   font-family: var(--font-sans);
-  -webkit-font-smoothing: antialiased;
+  overflow-x: hidden;
+  overscroll-behavior-y: none;
+  -webkit-overflow-scrolling: touch;
 }
 
-/* Custom scrollbars for drawers and tables */
+/* Touch micro-interaction optimization */
+* {
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* Custom smooth scrollbars for Black & Gold boutique feel */
 ::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
+  width: 7px;
+  height: 7px;
 }
 
 ::-webkit-scrollbar-track {
-  background: #F2ECE4;
+  background: #0B0A08;
 }
 
 ::-webkit-scrollbar-thumb {
-  background: #D8BD86;
+  background: #C9A25D;
   border-radius: 9999px;
+  border: 1px solid #0B0A08;
+  transition: background-color 0.3s ease;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: #C9A25D;
+  background: #E5C378;
 }
+
+/* 2. Micro-interactions and Luxury Transitions */
+.smooth-transition {
+  transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.luxury-card-hover {
+  transition: transform 0.4s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.4s cubic-bezier(0.16, 1, 0.3, 1), border-color 0.4s ease;
+}
+
+.luxury-card-hover:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 20px 40px -10px rgba(0, 0, 0, 0.8), 0 0 25px rgba(201, 162, 93, 0.18);
+}
+
+.luxury-btn {
+  transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1), background-color 0.25s ease, box-shadow 0.25s ease, color 0.25s ease, filter 0.25s ease;
+}
+
+.luxury-btn:active {
+  transform: scale(0.97);
+}
+
+/* Luxury expanding underline hover for links */
+.luxury-underline {
+  position: relative;
+}
+
+.luxury-underline::after {
+  content: '';
+  position: absolute;
+  bottom: -2px;
+  left: 0;
+  width: 0%;
+  height: 1.5px;
+  background: #E5C378;
+  transition: width 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.luxury-underline:hover::after {
+  width: 100%;
+}
+
+/* Shimmer animation for images and skeleton loaders while loading */
+@keyframes luxuryShimmer {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}
+
+.image-placeholder-shimmer {
+  background: linear-gradient(90deg, #14120F 25%, #24201A 50%, #14120F 75%);
+  background-size: 200% 100%;
+  animation: luxuryShimmer 2s infinite ease-in-out;
+}
+
+/* Gold Foil Metallic Effect */
+.gold-foil-badge {
+  background: linear-gradient(
+    135deg,
+    #FDF6E2 0%,
+    #EAD087 20%,
+    #FFF8E1 42%,
+    #DEB24A 58%,
+    #B58220 82%,
+    #F5DE96 100%
+  );
+  color: #2D1E04;
+  border: 1px solid rgba(196, 150, 48, 0.85);
+  box-shadow: 
+    0 2px 6px -1px rgba(181, 130, 32, 0.35),
+    0 1px 2px 0 rgba(0, 0, 0, 0.18),
+    inset 0 1px 1.5px rgba(255, 255, 255, 0.95),
+    inset 0 -1px 1px rgba(130, 85, 10, 0.35);
+  text-shadow: 0 1px 0.5px rgba(255, 255, 255, 0.6);
+  position: relative;
+  overflow: hidden;
+}
+
+.gold-foil-badge::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -130%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(
+    115deg,
+    transparent 0%,
+    rgba(255, 255, 255, 0.08) 25%,
+    rgba(255, 255, 255, 0.65) 50%,
+    rgba(255, 255, 255, 0.08) 75%,
+    transparent 100%
+  );
+  transform: skewX(-22deg);
+  transition: all 0.75s ease;
+  pointer-events: none;
+}
+
+.gold-foil-badge:hover::before {
+  left: 150%;
+}
+
+@keyframes goldFoilGleam {
+  0% {
+    left: -150%;
+  }
+  20% {
+    left: 150%;
+  }
+  100% {
+    left: 150%;
+  }
+}
+
+.gold-foil-gleam::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -150%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(
+    105deg,
+    transparent 20%,
+    rgba(255, 255, 255, 0.4) 45%,
+    rgba(255, 255, 255, 0.75) 50%,
+    rgba(255, 255, 255, 0.4) 55%,
+    transparent 80%
+  );
+  transform: skewX(-25deg);
+  animation: goldFoilGleam 6s infinite ease-in-out;
+  pointer-events: none;
+}
+
+/* 11. Accessibility: prefers-reduced-motion */
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto !important;
+  }
+  
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
