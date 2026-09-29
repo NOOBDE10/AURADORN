@@ -1,0 +1,28 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <defs>
+    <linearGradient id="goldGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#F2DFB8" />
+      <stop offset="50%" stop-color="#C9A25D" />
+      <stop offset="100%" stop-color="#8C6928" />
+    </linearGradient>
+    <linearGradient id="darkGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#1F1B18" />
+      <stop offset="100%" stop-color="#120F0D" />
+    </linearGradient>
+  </defs>
+  <rect width="512" height="512" rx="128" fill="url(#darkGrad)" />
+  <circle cx="256" cy="256" r="210" fill="none" stroke="url(#goldGrad)" stroke-width="3" opacity="0.4" />
+  <!-- Faceted Diamond Crown -->
+  <g transform="translate(136, 120)">
+    <polygon points="120,20 180,90 60,90" fill="url(#goldGrad)" opacity="0.95" />
+    <polygon points="120,20 60,90 10,90 40,20" fill="url(#goldGrad)" opacity="0.8" />
+    <polygon points="120,20 180,90 230,90 200,20" fill="url(#goldGrad)" opacity="0.8" />
+    <!-- Pavilion & Culet -->
+    <polygon points="10,90 60,90 120,240" fill="url(#goldGrad)" opacity="0.85" />
+    <polygon points="60,90 180,90 120,240" fill="url(#goldGrad)" opacity="0.98" />
+    <polygon points="180,90 230,90 120,240" fill="url(#goldGrad)" opacity="0.85" />
+  </g>
+  <!-- Brand Initials -->
+  <text x="256" y="420" font-family="'Cormorant Garamond', Georgia, serif" font-size="34" font-weight="600" letter-spacing="6" fill="#E6D4AF" text-anchor="middle">AURA &amp; CARAT</text>
+  <text x="256" y="445" font-family="'Montserrat', sans-serif" font-size="13" font-weight="400" letter-spacing="8" fill="#C9A25D" text-anchor="middle">HAUTE JOAILLERIE</text>
+</svg>
