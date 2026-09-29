@@ -26,7 +26,7 @@ interface OrderForEmail {
 export async function sendOrderAlert(to: string, brandName: string, order: OrderForEmail): Promise<void> {
   const user = process.env.GMAIL_USER;
   const pass = process.env.GMAIL_APP_PASSWORD;
-  if (!user || !pass) {
+  if (!user || !pass || pass.startsWith('demo_')) {
     console.warn('Order email skipped: GMAIL_USER / GMAIL_APP_PASSWORD not set');
     return;
   }
