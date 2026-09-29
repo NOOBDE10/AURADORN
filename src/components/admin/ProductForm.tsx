@@ -132,7 +132,7 @@ export const ProductForm: React.FC<Props> = ({ initial, categories, onSave, onCl
               <div className="grid grid-cols-4 sm:grid-cols-6 gap-2">
                 {images.map((url, i) => (
                   <div key={url + i} className={`relative rounded-lg overflow-hidden border ${i === 0 ? 'border-[#C9A25D]' : 'border-[#26211B]'}`}>
-                    <img src={url} alt="" className="w-full aspect-square object-cover" />
+                    <img loading="lazy" decoding="async" src={url} alt="" className="w-full aspect-square object-cover" />
                     <div className="absolute inset-x-0 bottom-0 flex justify-between bg-black/70 text-[10px]">
                       {i !== 0 ? (
                         <button type="button" onClick={() => moveImageFirst(i)} className="px-1.5 py-0.5 hover:text-[#E5C378] cursor-pointer">Main</button>

@@ -65,7 +65,7 @@ export const CategoryList: React.FC<CategoryListProps> = ({ onSelectCategory, ac
                 {/* Circular / Rounded Image with hover zoom */}
                 <div className="w-full aspect-square rounded-xl overflow-hidden mb-3 bg-[#1A1714] relative">
                   <motion.img
-                    src={cat.image || '/logo.png'}
+                    src={cat.image || '/logo-256.jpg'}
                     alt={cat.name}
                     className="w-full h-full object-cover object-center group-hover:scale-110 transition-transform duration-500 ease-out"
                     loading="lazy"

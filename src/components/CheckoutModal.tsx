@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { useStore } from '../context/StoreContext';
+import { Link } from 'react-router-dom';
 import { formatPrice } from '../lib/format';
 import { 
   X, 
@@ -110,8 +111,8 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({ onOrderSuccess }) 
         <div className="px-6 py-4 border-b border-[#241F1A] bg-[#0A0908] flex items-center justify-between sticky top-0 z-20">
           <div className="flex items-center gap-3">
             <div className="w-9 h-9 rounded-full overflow-hidden border border-[#C9A25D] bg-[#0E0D0B] shrink-0 p-0.5 shadow-sm">
-              <img 
-                src="/logo.png" 
+              <img loading="lazy" decoding="async" 
+                src="/logo-256.jpg" 
                 alt={`${settings.brandName} logo`} 
                 onError={(e) => { (e.currentTarget as HTMLImageElement).src = '/icon.svg'; }} 
                 className="w-full h-full object-cover rounded-full" 
@@ -314,7 +315,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({ onOrderSuccess }) 
                 <div className="divide-y divide-[#241F1A] max-h-56 overflow-y-auto py-2">
                   {cart.map(item => (
                     <div key={`${item.product.id}-${item.selectedSize || ''}`} className="py-2.5 flex items-center gap-3">
-                      <img
+                      <img loading="lazy" decoding="async"
                         src={item.product.images[0]}
                         alt={item.product.name}
                         className="w-12 h-12 object-cover rounded-lg border border-[#26211B] bg-[#181613] shrink-0"
@@ -381,6 +382,11 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({ onOrderSuccess }) 
                   <p className="flex items-center justify-center gap-1.5 text-[#A89F91]">
                     <ShieldCheck className="w-3.5 h-3.5 text-[#E5C378]" />
                     We will call or WhatsApp you to confirm your order
+                  </p>
+                  <p>
+                    By placing your order you agree to our{' '}
+                    <Link to="/policies/terms" onClick={closeCheckout} className="underline hover:text-[#E5C378]">Terms</Link> and{' '}
+                    <Link to="/policies/returns" onClick={closeCheckout} className="underline hover:text-[#E5C378]">Returns & Exchange</Link> policy.
                   </p>
                 </div>
               </div>

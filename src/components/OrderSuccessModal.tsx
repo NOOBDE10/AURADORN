@@ -39,8 +39,8 @@ export const OrderSuccessModal: React.FC<OrderSuccessModalProps> = ({ order, onC
         {/* Top Gold Icon */}
         {/* Brand Medallion Logo */}
         <div className="w-20 h-20 bg-[#0E0D0B] rounded-full flex items-center justify-center mx-auto border-2 border-[#C9A25D] p-1 shadow-[0_0_25px_rgba(201,162,93,0.4)]">
-          <img 
-            src="/logo.png" 
+          <img loading="lazy" decoding="async" 
+            src="/logo-256.jpg" 
             alt={`${settings.brandName} logo`} 
             onError={(e) => { (e.currentTarget as HTMLImageElement).src = '/icon.svg'; }} 
             className="w-full h-full object-cover rounded-full" 
@@ -89,7 +89,7 @@ export const OrderSuccessModal: React.FC<OrderSuccessModalProps> = ({ order, onC
             {order.items.map((item, idx) => (
               <div key={idx} className="py-2 flex items-center justify-between text-xs font-sans">
                 <div className="flex items-center gap-3">
-                  <img src={item.productImage} alt={item.productName} className="w-10 h-10 object-cover rounded border border-[#26211B] bg-[#181613]" />
+                  <img loading="lazy" decoding="async" src={item.productImage} alt={item.productName} className="w-10 h-10 object-cover rounded border border-[#26211B] bg-[#181613]" />
                   <div>
                     <p className="font-serif font-medium text-[#FAF7F2] line-clamp-1">{item.productName}</p>
                     <p className="text-[10px] text-[#A89F91]">Qty: {item.quantity}{item.size ? ` • ${item.size}` : ''}</p>

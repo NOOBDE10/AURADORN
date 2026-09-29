@@ -215,7 +215,7 @@ export const OrderTrackingModal: React.FC = () => {
                   {searchedOrder.items.map((item, idx) => (
                     <div key={idx} className="py-2 flex items-center justify-between text-xs font-sans">
                       <div className="flex items-center gap-2">
-                        <img src={item.productImage} alt={item.productName} className="w-8 h-8 object-cover rounded border border-[#26211B] bg-[#181613]" />
+                        <img loading="lazy" decoding="async" src={item.productImage} alt={item.productName} className="w-8 h-8 object-cover rounded border border-[#26211B] bg-[#181613]" />
                         <div>
                           <p className="font-serif font-medium text-[#FAF7F2]">{item.productName}</p>
                           <p className="text-[10px] text-[#A89F91]">Qty: {item.quantity}{item.size ? ` • ${item.size}` : ''}</p>

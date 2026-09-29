@@ -1,5 +1,7 @@
 import React from 'react';
 import { useStore } from '../context/StoreContext';
+import { Link } from 'react-router-dom';
+import { POLICY_PAGES, policyTitle } from './policyLinks';
 import { 
   Phone, 
   Mail, 
@@ -34,12 +36,12 @@ export const Footer: React.FC<FooterProps> = ({ onSelectCategory }) => {
         <NewsletterSubscription variant="footer" />
 
         {/* Brand & Pillars Top Row */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-8 pb-12 border-b border-[#241F1A]">
-          <div className="space-y-4 md:col-span-1">
+        <div className="grid grid-cols-2 lg:grid-cols-5 gap-8 pb-12 border-b border-[#241F1A]">
+          <div className="space-y-4 col-span-2 lg:col-span-1">
             <div className="flex items-center gap-3">
               <div className="relative w-12 h-12 rounded-full overflow-hidden border border-[#C9A25D] bg-[#0E0D0B] p-0.5 shadow-[0_0_15px_rgba(201,162,93,0.3)] shrink-0">
-                <img 
-                  src="/logo.png" 
+                <img loading="lazy" decoding="async" 
+                  src="/logo-256.jpg" 
                   alt="Aura Adorn logo" 
                   onError={(e) => {
                     (e.currentTarget as HTMLImageElement).src = '/icon.svg';
@@ -124,6 +126,22 @@ export const Footer: React.FC<FooterProps> = ({ onSelectCategory }) => {
               <li className="text-stone-500 pt-1">
                 COD Available Nationwide
               </li>
+            </ul>
+          </div>
+
+          {/* Policies */}
+          <div className="space-y-3">
+            <h4 className="font-serif text-sm font-semibold uppercase tracking-widest text-[#FAF7F2]">
+              Policies
+            </h4>
+            <ul className="space-y-2 text-xs font-sans">
+              {POLICY_PAGES.map(key => (
+                <li key={key}>
+                  <Link to={`/policies/${key}`} className="hover:text-[#E5C378] transition-colors">
+                    {policyTitle(key)}
+                  </Link>
+                </li>
+              ))}
             </ul>
           </div>
 

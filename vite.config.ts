@@ -48,6 +48,8 @@ export default defineConfig(() => {
         },
         workbox: {
           globPatterns: ['**/*.{js,css,html,ico,svg,woff,woff2}'],
+          // Admin-only code (full Firestore SDK, Auth, admin panel) is fetched on demand, not pre-cached for shoppers.
+          globIgnores: ['**/admin-*.js', '**/AdminDashboard-*.js'],
           navigateFallbackDenylist: [/^\/api\//],
           runtimeCaching: [
             {
@@ -68,6 +70,17 @@ export default defineConfig(() => {
         },
       }),
     ],
+    build: {
+      rolldownOptions: {
+        output: {
+          // Give the lazily loaded Firebase SDK chunks recognisable names (see globIgnores above).
+          chunkFileNames: (chunk: { name: string; moduleIds: string[] }) =>
+            chunk.moduleIds.some(id => /@firebase[\\/](firestore|auth)[\\/]dist[\\/](?!lite)/.test(id) && !/[\\/]lite[\\/]/.test(id))
+              ? 'assets/admin-[name]-[hash].js'
+              : 'assets/[name]-[hash].js',
+        },
+      },
+    },
     resolve: {
       alias: {
         '@': path.resolve(import.meta.dirname, '.'),

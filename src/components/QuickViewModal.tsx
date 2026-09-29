@@ -44,7 +44,7 @@ export const QuickViewModal: React.FC = () => {
         <div className="grid grid-cols-1 sm:grid-cols-2">
           {/* Product Image */}
           <div className="relative aspect-square bg-[#181613]">
-            <img
+            <img loading="lazy" decoding="async"
               src={quickViewProduct.images[0]}
               alt={quickViewProduct.name}
               className="w-full h-full object-cover"
@@ -52,8 +52,8 @@ export const QuickViewModal: React.FC = () => {
             {/* Top-Center Brand Medallion Logo */}
             <div className="absolute top-3 left-1/2 -translate-x-1/2 z-10 pointer-events-none">
               <div className="w-8 h-8 rounded-full overflow-hidden border-2 border-[#C9A25D] bg-[#0E0D0B] p-0.5 shadow-[0_2px_15px_rgba(201,162,93,0.4)]">
-                <img 
-                  src="/logo.png" 
+                <img loading="lazy" decoding="async" 
+                  src="/logo-256.jpg" 
                   alt="Aura Adorn logo" 
                   onError={(e) => { (e.currentTarget as HTMLImageElement).src = '/icon.svg'; }} 
                   className="w-full h-full object-cover rounded-full" 

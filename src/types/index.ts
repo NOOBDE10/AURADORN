@@ -158,6 +158,9 @@ export interface StoreSettings {
   returnPolicy: string;
   shippingPolicy: string;
   warrantyPolicy: string;
+  /** Optional overrides; sensible defaults are shown when empty. */
+  privacyPolicy?: string;
+  termsPolicy?: string;
 }
 
 export interface CustomerProfile {

@@ -33,7 +33,7 @@ export const ProductCompareBar: React.FC = () => {
               className="relative group shrink-0"
               title={product.name}
             >
-              <img
+              <img loading="lazy" decoding="async"
                 src={product.images[0]}
                 alt={product.name}
                 className="w-10 h-10 sm:w-11 sm:h-11 rounded-lg object-cover border border-[#C9A25D]/40 bg-[#14120F] group-hover:border-[#E5C378] transition-colors"

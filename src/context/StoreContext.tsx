@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useState, useEffect, useCallback, useMemo, ReactNode } from 'react';
-import { onAuthStateChanged, signInWithEmailAndPassword, signOut, User } from 'firebase/auth';
-import { auth } from '../firebase/config';
+import type { User } from 'firebase/auth';
+import { getAuthLazy, ADMIN_SESSION_FLAG } from '../firebase/config';
 import { Product, Category, CartItem, Order, OrderStatus, Review, StoreSettings } from '../types';
 import {
   checkIsAdmin,
@@ -174,12 +174,32 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
   useEffect(() => writeLocal(LOCAL_COMPARE_KEY, compareList), [compareList]);
 
   // Auth: admin rights come from the Firestore admins/{uid} document (also enforced by security rules).
+  // Firebase Auth is only loaded for returning admins (flag set at sign-in) or when the admin panel opens.
+  const [authWanted, setAuthWanted] = useState<boolean>(() => {
+    try {
+      return localStorage.getItem(ADMIN_SESSION_FLAG) === '1';
+    } catch {
+      return false;
+    }
+  });
+
   useEffect(() => {
-    return onAuthStateChanged(auth, async currentUser => {
-      setUser(currentUser);
-      setIsAdmin(currentUser ? await checkIsAdmin(currentUser.uid) : false);
-    });
-  }, []);
+    if (!authWanted) return;
+    let unsubscribe: (() => void) | undefined;
+    let cancelled = false;
+    (async () => {
+      const [{ onAuthStateChanged }, auth] = await Promise.all([import('firebase/auth'), getAuthLazy()]);
+      if (cancelled) return;
+      unsubscribe = onAuthStateChanged(auth, async currentUser => {
+        setUser(currentUser);
+        setIsAdmin(currentUser ? await checkIsAdmin(currentUser.uid) : false);
+      });
+    })();
+    return () => {
+      cancelled = true;
+      unsubscribe?.();
+    };
+  }, [authWanted]);
 
   const loadData = useCallback(async () => {
     setIsLoading(true);
@@ -212,10 +232,19 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
       setOrders([]);
       return;
     }
-    return subscribeToOrders(setOrders, e => {
+    let unsubscribe: (() => void) | undefined;
+    let cancelled = false;
+    subscribeToOrders(setOrders, e => {
       console.error('Order subscription failed', e);
       showToast('Could not load orders. Check your connection.', 'info');
+    }).then(unsub => {
+      if (cancelled) unsub();
+      else unsubscribe = unsub;
     });
+    return () => {
+      cancelled = true;
+      unsubscribe?.();
+    };
   }, [isAdmin, showToast]);
 
   const products = useMemo(() => allProducts.filter(p => p.status !== 'draft'), [allProducts]);
@@ -347,6 +376,7 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
   // ---------------- Admin ----------------
 
   const adminLogin = async (email: string, password: string) => {
+    const [{ signInWithEmailAndPassword, signOut }, auth] = await Promise.all([import('firebase/auth'), getAuthLazy()]);
     let cred;
     try {
       cred = await signInWithEmailAndPassword(auth, email.trim(), password);
@@ -359,11 +389,24 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
       throw new Error('This account does not have admin access.');
     }
     setIsAdmin(true);
+    setUser(cred.user);
+    setAuthWanted(true);
+    try {
+      localStorage.setItem(ADMIN_SESSION_FLAG, '1');
+    } catch {
+      // ignore
+    }
     showToast('Signed in to the admin panel.', 'gold');
   };
 
   const adminLogout = async () => {
+    const [{ signOut }, auth] = await Promise.all([import('firebase/auth'), getAuthLazy()]);
     await signOut(auth);
+    try {
+      localStorage.removeItem(ADMIN_SESSION_FLAG);
+    } catch {
+      // ignore
+    }
     setIsAdmin(false);
     showToast('Signed out.', 'info');
   };
@@ -556,7 +599,10 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
           setIsTrackingOpen(true);
         },
         closeTracking: () => setIsTrackingOpen(false),
-        openAdmin: () => setIsAdminOpen(true),
+        openAdmin: () => {
+          setAuthWanted(true);
+          setIsAdminOpen(true);
+        },
         closeAdmin: () => setIsAdminOpen(false),
         openProductDetails: product => setSelectedProduct(product),
         closeProductDetails: () => setSelectedProduct(null),

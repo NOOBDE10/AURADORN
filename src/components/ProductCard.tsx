@@ -118,8 +118,8 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product, index = 0 }) 
         {/* Luxury Brand Logo Crest at Top Center */}
         <div className="absolute top-2.5 left-1/2 -translate-x-1/2 z-10 pointer-events-none">
           <div className="relative w-8 h-8 sm:w-9 sm:h-9 rounded-full bg-[#0B0A08] border-2 border-[#C9A25D] p-0.5 shadow-[0_2px_15px_rgba(201,162,93,0.4),0_0_12px_rgba(0,0,0,0.9)] flex items-center justify-center group-hover:border-[#E5C378] group-hover:scale-110 transition-all duration-300">
-            <img 
-              src="/logo.png" 
+            <img loading="lazy" decoding="async" 
+              src="/logo-256.jpg" 
               alt="Aura Adorn logo" 
               onError={(e) => {
                 (e.currentTarget as HTMLImageElement).src = '/icon.svg';

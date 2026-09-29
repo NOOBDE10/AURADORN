@@ -95,11 +95,17 @@ export const SettingsTab: React.FC<Props> = ({ settings, onSave }) => {
       </section>
 
       <section className="space-y-3">
-        <h3 className="font-serif text-lg text-[#FAF7F2]">Policies (shown on product pages and the Policies page)</h3>
-        {([['shippingPolicy', 'Shipping / delivery policy'], ['returnPolicy', 'Return / exchange policy'], ['warrantyPolicy', 'Product care & disclaimer']] as const).map(([key, label]) => (
+        <h3 className="font-serif text-lg text-[#FAF7F2]">Policies (shown on the Policies pages in the footer)</h3>
+        {([
+          ['shippingPolicy', 'Shipping / delivery policy', 3],
+          ['returnPolicy', 'Return / exchange policy', 3],
+          ['warrantyPolicy', 'Product care & disclaimer', 3],
+          ['privacyPolicy', 'Privacy policy (leave empty to use the standard text)', 6],
+          ['termsPolicy', 'Terms & conditions (leave empty to use the standard text)', 6],
+        ] as const).map(([key, label, rows]) => (
           <div key={key}>
             <label className={labelCls}>{label}</label>
-            <textarea rows={3} className={inputCls} value={form[key]} onChange={e => set(key, e.target.value)} />
+            <textarea rows={rows} className={inputCls} value={form[key] || ''} onChange={e => set(key, e.target.value)} />
           </div>
         ))}
       </section>

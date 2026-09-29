@@ -9,11 +9,9 @@ import {
   query,
   where,
   orderBy,
-  onSnapshot,
   arrayUnion,
-  Unsubscribe,
-} from 'firebase/firestore';
-import { db } from '../firebase/config';
+} from 'firebase/firestore/lite';
+import { app, db } from '../firebase/config';
 import { Product, Category, Order, OrderStatus, Review, StoreSettings, NewsletterSubscriber } from '../types';
 import { INITIAL_CATEGORIES, INITIAL_SETTINGS } from '../data/initialData';
 
@@ -143,10 +141,19 @@ export async function trackOrder(orderId: string, phone: string): Promise<Order 
   return order;
 }
 
-/** Admin only: live list of all orders, newest first. */
-export function subscribeToOrders(onChange: (orders: Order[]) => void, onError: (e: Error) => void): Unsubscribe {
-  return onSnapshot(
-    query(collection(db, 'orders'), orderBy('createdAt', 'desc')),
+/**
+ * Admin only: live list of all orders, newest first.
+ * Uses the full Firestore SDK (real-time listener), loaded on demand so shoppers never download it.
+ * Returns an unsubscribe function.
+ */
+export async function subscribeToOrders(
+  onChange: (orders: Order[]) => void,
+  onError: (e: Error) => void
+): Promise<() => void> {
+  const fs = await import('firebase/firestore');
+  const fullDb = fs.getFirestore(app);
+  return fs.onSnapshot(
+    fs.query(fs.collection(fullDb, 'orders'), fs.orderBy('createdAt', 'desc')),
     snapshot => {
       const orders: Order[] = [];
       snapshot.forEach(d => orders.push({ id: d.id, ...d.data() } as Order));

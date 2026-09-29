@@ -15,7 +15,7 @@ export const AALogo: React.FC<AALogoProps> = ({
   className = '',
   onClick
 }) => {
-  const [imgSrc, setImgSrc] = useState('/logo.png');
+  const [imgSrc, setImgSrc] = useState('/logo-256.jpg');
 
   // Dimension mapping for the circular logo badge
   const sizeMap = {
@@ -41,7 +41,7 @@ export const AALogo: React.FC<AALogoProps> = ({
     >
       {/* Golden Medallion Badge */}
       <div className={`relative ${sizeMap[size]} rounded-full overflow-hidden border border-[#C9A25D]/70 bg-[#0B0A08] p-0.5 shadow-[0_2px_15px_rgba(201,162,93,0.35),0_0_20px_rgba(0,0,0,0.8)] shrink-0 transition-transform duration-300 hover:scale-105`}>
-        <img
+        <img loading="lazy" decoding="async"
           src={imgSrc}
           alt="Aura Adorn logo"
           onError={() => setImgSrc('/icon.svg')}

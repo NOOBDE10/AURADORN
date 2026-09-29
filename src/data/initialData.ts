@@ -7,7 +7,7 @@ import { Product, Category, StoreSettings, Review } from '../types';
 export const INITIAL_SETTINGS: StoreSettings = {
   brandName: 'Aura Adorn',
   tagline: 'Artificial Jewellery • Luxury Look, Everyday Price',
-  logo: '/logo.png',
+  logo: '/logo-512.jpg',
   phone: '+92 333 8282369',
   whatsappNumber: '+923338282369',
   email: 'auraadornjewellers@gmail.com',
@@ -22,7 +22,7 @@ export const INITIAL_SETTINGS: StoreSettings = {
     tag: 'New Collection',
     title: 'Elegant Artificial Jewellery for Every Occasion',
     subtitle: 'Bridal sets, jhumkas, bangles, rings and everyday pieces. Beautifully finished, honestly priced, delivered to your door with Cash on Delivery.',
-    image: '/logo.png',
+    image: '/logo-512.jpg',
     ctaText: 'Shop Now',
     ctaLink: '#products'
   },

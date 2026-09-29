@@ -44,8 +44,8 @@ export const CartDrawer: React.FC = () => {
         <div className="px-6 py-4 border-b border-[#241F1A] bg-[#0E0D0B] flex items-center justify-between">
           <div className="flex items-center gap-3">
             <div className="w-9 h-9 rounded-full overflow-hidden border border-[#C9A25D] bg-[#0B0A08] shrink-0 p-0.5 shadow-sm">
-              <img 
-                src="/logo.png" 
+              <img loading="lazy" decoding="async" 
+                src="/logo-256.jpg" 
                 alt="Aura Adorn logo" 
                 onError={(e) => { (e.currentTarget as HTMLImageElement).src = '/icon.svg'; }} 
                 className="w-full h-full object-cover rounded-full" 
@@ -110,7 +110,7 @@ export const CartDrawer: React.FC = () => {
                 className="flex gap-4 p-4 bg-[#14120F] rounded-2xl border border-[#26211B] shadow-sm hover:border-[#C9A25D]/40 transition-colors"
               >
                 {/* Thumbnail */}
-                <img
+                <img loading="lazy" decoding="async"
                   src={item.product.images[0]}
                   alt={item.product.name}
                   className="w-20 h-20 object-cover rounded-xl border border-[#2E2822] bg-[#181613] shrink-0"

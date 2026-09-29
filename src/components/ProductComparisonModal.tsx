@@ -204,7 +204,7 @@ export const ProductComparisonModal: React.FC = () => {
                       >
                         {/* Column Header: Image & Quick Remove */}
                         <div className="relative aspect-4/3 bg-[#181613] overflow-hidden group">
-                          <img 
+                          <img loading="lazy" decoding="async" 
                             src={product.images[0]} 
                             alt={product.name} 
                             className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" 
@@ -472,7 +472,7 @@ export const ProductComparisonModal: React.FC = () => {
                       className="p-3 rounded-xl border border-[#26211B] hover:border-[#C9A25D] hover:bg-[#181613] transition-all flex items-center justify-between gap-3 cursor-pointer group"
                     >
                       <div className="flex items-center gap-3 min-w-0">
-                        <img 
+                        <img loading="lazy" decoding="async" 
                           src={p.images[0]} 
                           alt={p.name} 
                           className="w-12 h-12 rounded-lg object-cover bg-stone-900 shrink-0" 

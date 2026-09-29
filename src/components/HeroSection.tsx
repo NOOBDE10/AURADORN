@@ -67,7 +67,7 @@ export const HeroSection: React.FC<HeroSectionProps> = ({ onShopNow }) => {
             >
               <div className="w-6 h-6 rounded-full overflow-hidden border border-[#E5C378] shrink-0">
                 <img 
-                  src="/logo.png" 
+                  src="/logo-256.jpg" 
                   alt="Aura Adorn logo" 
                   onError={(e) => { (e.currentTarget as HTMLImageElement).src = '/icon.svg'; }} 
                   className="w-full h-full object-cover" 
@@ -168,7 +168,7 @@ export const HeroSection: React.FC<HeroSectionProps> = ({ onShopNow }) => {
               <div className="relative w-72 h-72 sm:w-80 sm:h-80 rounded-full p-2 bg-gradient-to-tr from-[#C9A25D] via-[#E5C378] to-[#996515] shadow-[0_15px_60px_rgba(0,0,0,0.9),0_0_30px_rgba(201,162,93,0.4)] flex items-center justify-center">
                 <div className="w-full h-full rounded-full overflow-hidden bg-[#0B0A08] p-1.5 flex items-center justify-center relative">
                   <img
-                    src="/logo.png"
+                    src="/logo-256.jpg"
                     alt="Aura Adorn logo"
                     onError={(e) => { (e.currentTarget as HTMLImageElement).src = '/icon.svg'; }}
                     className="w-full h-full object-cover rounded-full"

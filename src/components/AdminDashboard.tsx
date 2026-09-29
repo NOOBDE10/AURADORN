@@ -175,8 +175,8 @@ export const AdminDashboard: React.FC = () => {
         <div className="px-6 py-4 border-b border-[#26211B] bg-[#080706] text-[#FAF7F2] flex items-center justify-between sticky top-0 z-20">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-full overflow-hidden border border-[#C9A25D] bg-[#0B0A08] p-0.5 shadow-[0_0_15px_rgba(201,162,93,0.4)] shrink-0">
-              <img 
-                src="/logo.png" 
+              <img loading="lazy" decoding="async" 
+                src="/logo-256.jpg" 
                 alt="Logo" 
                 onError={(e) => { (e.currentTarget as HTMLImageElement).src = '/icon.svg'; }}
                 className="w-full h-full object-cover rounded-full" 
@@ -645,7 +645,7 @@ export const AdminDashboard: React.FC = () => {
                   <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                     {products.map(prod => (
                       <div key={prod.id} className="p-4 bg-[#14120F] rounded-2xl border border-[#26211B] hover:border-[#C9A25D]/60 transition-colors flex gap-4">
-                        <img
+                        <img loading="lazy" decoding="async"
                           src={prod.images[0]}
                           alt={prod.name}
                           className="w-24 h-24 object-cover rounded-xl border border-[#2E2822] bg-[#1A1714] shrink-0"
@@ -865,8 +865,8 @@ export const AdminDashboard: React.FC = () => {
                 <div className="space-y-1">
                   <div className="flex items-center gap-3">
                     <div className="w-9 h-9 rounded-full overflow-hidden border border-[#C9A25D] bg-[#0E0D0B] shrink-0 p-0.5 shadow-sm">
-                      <img 
-                        src="/logo.png" 
+                      <img loading="lazy" decoding="async" 
+                        src="/logo-256.jpg" 
                         alt="Logo" 
                         onError={(e) => { (e.currentTarget as HTMLImageElement).src = '/icon.svg'; }} 
                         className="w-full h-full object-cover rounded-full" 
@@ -1060,7 +1060,7 @@ export const AdminDashboard: React.FC = () => {
                           <div className="flex items-center gap-3">
                             <div className="w-12 h-12 rounded-xl bg-[#1A1714] border border-[#2E2822] flex items-center justify-center overflow-hidden shrink-0">
                               {item.productImage ? (
-                                <img src={item.productImage} alt={item.productName} className="w-full h-full object-cover" />
+                                <img loading="lazy" decoding="async" src={item.productImage} alt={item.productName} className="w-full h-full object-cover" />
                               ) : (
                                 <Sparkles className="w-5 h-5 text-[#C9A25D]" />
                               )}
@@ -1152,8 +1152,8 @@ export const AdminDashboard: React.FC = () => {
               <div className="flex items-center justify-between border-b border-[#26211B] pb-4">
                 <div className="flex items-center gap-3">
                   <div className="w-12 h-12 rounded-full overflow-hidden border-2 border-[#C9A25D] bg-[#0E0D0B] shrink-0 p-0.5 shadow-md">
-                    <img 
-                      src="/logo.png" 
+                    <img loading="lazy" decoding="async" 
+                      src="/logo-256.jpg" 
                       alt="Logo" 
                       onError={(e) => { (e.currentTarget as HTMLImageElement).src = '/icon.svg'; }} 
                       className="w-full h-full object-cover rounded-full" 

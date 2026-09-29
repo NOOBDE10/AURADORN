@@ -83,7 +83,7 @@ export const CategoriesTab: React.FC<Props> = ({ categories, products, onSave, o
       <div className="divide-y divide-[#26211B] border border-[#26211B] rounded-2xl overflow-hidden">
         {categories.map(c => (
           <div key={c.id} className="flex items-center gap-3 p-3 bg-[#12100E]">
-            {c.image ? <img src={c.image} alt="" className="w-12 h-12 rounded-lg object-cover" /> : <div className="w-12 h-12 rounded-lg bg-[#1A1713]" />}
+            {c.image ? <img loading="lazy" decoding="async" src={c.image} alt="" className="w-12 h-12 rounded-lg object-cover" /> : <div className="w-12 h-12 rounded-lg bg-[#1A1713]" />}
             <div className="flex-1 min-w-0">
               <p className="font-serif text-sm text-[#FAF7F2]">{c.name} <span className="text-stone-500 text-xs font-sans">({countFor(c.slug)} products)</span></p>
               <p className="text-xs text-stone-400 truncate">{c.description}</p>
@@ -120,7 +120,7 @@ export const CategoriesTab: React.FC<Props> = ({ categories, products, onSave, o
             <div>
               <label className={labelCls}>Image</label>
               <div className="flex gap-2 items-center">
-                {editing.image && <img src={editing.image} alt="" className="w-12 h-12 rounded-lg object-cover" />}
+                {editing.image && <img loading="lazy" decoding="async" src={editing.image} alt="" className="w-12 h-12 rounded-lg object-cover" />}
                 <input className={inputCls} value={editing.image} onChange={e => setEditing({ ...editing, image: e.target.value })} placeholder="https://…" />
                 {isImageUploadConfigured && (
                   <label className={`${btnGhost} inline-flex items-center gap-1 shrink-0`}>

@@ -116,8 +116,8 @@ export const VaultDealsSection: React.FC<VaultDealsSectionProps> = ({ onNavigate
                   {/* Top-Center Brand Medallion Logo (User's Exact Logo) */}
                   <div className="absolute left-1/2 -translate-x-1/2 top-3">
                     <div className="relative w-9 h-9 sm:w-10 sm:h-10 rounded-full overflow-hidden bg-[#0B0A08] border-2 border-[#C9A25D] p-0.5 shadow-[0_2px_15px_rgba(201,162,93,0.5),0_0_12px_rgba(0,0,0,0.9)] group-hover:scale-110 group-hover:border-[#E5C378] transition-transform duration-300">
-                      <img 
-                        src="/logo.png" 
+                      <img loading="lazy" decoding="async" 
+                        src="/logo-256.jpg" 
                         alt="Aura Adorn logo" 
                         onError={(e) => {
                           (e.currentTarget as HTMLImageElement).src = '/icon.svg';

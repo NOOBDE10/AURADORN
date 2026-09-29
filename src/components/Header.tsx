@@ -239,7 +239,7 @@ export const Header: React.FC<HeaderProps> = ({
             >
               <div className="relative w-11 h-11 sm:w-12 sm:h-12 rounded-full overflow-hidden border-2 border-[#C9A25D] bg-[#0E0D0B] p-0.5 shadow-[0_0_20px_rgba(201,162,93,0.4)] flex items-center justify-center shrink-0 group-hover:scale-105 group-hover:border-[#E5C378] transition-all duration-300">
                 <img 
-                  src="/logo.png" 
+                  src="/logo-256.jpg" 
                   alt={settings.brandName} 
                   onError={(e) => {
                     (e.currentTarget as HTMLImageElement).src = '/icon.svg';

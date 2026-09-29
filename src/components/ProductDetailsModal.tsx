@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useStore } from '../context/StoreContext';
 import { formatPrice } from '../lib/format';
+import { absoluteUrl, productPath } from '../lib/urls';
 import { Product, Review } from '../types';
 import { 
   X, 
@@ -16,7 +17,8 @@ import {
   Minus,
   CheckCircle2,
   Send,
-  ChevronRight
+  ChevronRight,
+  Share2
 } from 'lucide-react';
 import { addReview } from '../services/storeService';
 import { LoyaltyBadge } from './LoyaltyBadge';
@@ -102,11 +104,26 @@ export const ProductDetailsModal: React.FC = () => {
     openCheckout();
   };
 
+  const handleShare = async () => {
+    const url = absoluteUrl(productPath(selectedProduct));
+    const title = `${selectedProduct.name} | ${settings.brandName}`;
+    try {
+      if (navigator.share) {
+        await navigator.share({ title, text: `${selectedProduct.name}: ${formatPrice(selectedProduct.price)}`, url });
+        return;
+      }
+      await navigator.clipboard.writeText(url);
+      showToast('Link copied. Paste it in WhatsApp or Instagram to share.', 'gold');
+    } catch {
+      // user cancelled the share sheet
+    }
+  };
+
   const handleWhatsAppOrder = () => {
     const message = `Hello ${settings.brandName}, I would like to order:
 
 *Product:* ${selectedProduct.name}
-*Code:* ${selectedProduct.id}
+*Link:* ${absoluteUrl(productPath(selectedProduct))}
 *Quantity:* ${quantity}
 *Price:* ${formatPrice(selectedProduct.price * quantity)}${selectedSize ? `\n*${optionLabel}:* ${selectedSize}` : ''}
 
@@ -153,8 +170,8 @@ Please confirm availability for Cash on Delivery.`;
         <div className="flex items-center justify-between px-6 py-4 border-b border-[#241F1A] bg-[#0A0908] sticky top-0 z-20">
           <div className="flex items-center gap-3 text-xs font-sans text-[#A89F91]">
             <div className="w-8 h-8 rounded-full overflow-hidden border border-[#C9A25D] bg-[#0E0D0B] shrink-0 p-0.5 shadow-sm">
-              <img 
-                src="/logo.png" 
+              <img loading="lazy" decoding="async" 
+                src="/logo-256.jpg" 
                 alt="Aura Adorn logo" 
                 onError={(e) => { (e.currentTarget as HTMLImageElement).src = '/icon.svg'; }} 
                 className="w-full h-full object-cover rounded-full" 
@@ -187,7 +204,7 @@ Please confirm availability for Cash on Delivery.`;
                 onMouseLeave={() => setIsZoomed(false)}
                 onMouseMove={handleMouseMove}
               >
-                <img
+                <img loading="lazy" decoding="async"
                   src={selectedProduct.images[activeImageIndex] || selectedProduct.images[0]}
                   alt={selectedProduct.name}
                   className={`w-full h-full object-cover transition-transform duration-200 ${
@@ -210,6 +227,15 @@ Please confirm availability for Cash on Delivery.`;
                 >
                   <Heart className={`w-5 h-5 ${isWishlisted ? 'fill-rose-500' : ''}`} />
                 </button>
+                {/* Share button */}
+                <button
+                  onClick={handleShare}
+                  aria-label="Share this product"
+                  title="Share"
+                  className="absolute top-16 right-4 p-2.5 rounded-full backdrop-blur-md transition-all shadow-md cursor-pointer border bg-[#0B0A08]/75 text-stone-300 hover:bg-[#181613] hover:text-[#E5C378] border-[#2A241E]"
+                >
+                  <Share2 className="w-5 h-5" />
+                </button>
               </div>
 
               {/* Thumbnails Row */}
@@ -223,7 +249,7 @@ Please confirm availability for Cash on Delivery.`;
                         activeImageIndex === idx ? 'border-[#E5C378] shadow-md shadow-[#C9A25D]/20' : 'border-[#26211B] opacity-60 hover:opacity-100'
                       }`}
                     >
-                      <img src={img} alt={`View ${idx + 1}`} className="w-full h-full object-cover" />
+                      <img loading="lazy" decoding="async" src={img} alt={`View ${idx + 1}`} className="w-full h-full object-cover" />
                     </button>
                   ))}
                 </div>
@@ -579,7 +605,7 @@ Please confirm availability for Cash on Delivery.`;
                     }}
                     className="p-3 bg-[#14120F] rounded-xl border border-[#26211B] hover:border-[#C9A25D] transition-colors cursor-pointer flex items-center gap-3 group"
                   >
-                    <img src={p.images[0]} alt={p.name} className="w-16 h-16 object-cover rounded-lg border border-[#26211B] bg-[#181613]" />
+                    <img loading="lazy" decoding="async" src={p.images[0]} alt={p.name} className="w-16 h-16 object-cover rounded-lg border border-[#26211B] bg-[#181613]" />
                     <div>
                       <h4 className="font-serif text-sm font-medium text-[#FAF7F2] group-hover:text-[#E5C378] transition-colors line-clamp-1">{p.name}</h4>
                       <p className="text-xs font-sans text-[#E5C378] font-semibold mt-1">{formatPrice(p.price)}</p>
