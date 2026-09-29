@@ -34,69 +34,8 @@ export interface ResolvedLoyaltyTier {
  * and returns the appropriate 'Limited Edition' or 'Exclusive' configuration.
  */
 export function getProductLoyaltyTier(product: Product): ResolvedLoyaltyTier | null {
-  // 1. Explicitly configured badge from admin or data
-  if (product.loyaltyBadge) {
-    const type = product.loyaltyBadge.type;
-    const isLimited = type === 'limited_edition' || product.isLimitedEdition;
-    
-    return {
-      displayLabel: isLimited ? 'Limited Edition' : 'Exclusive',
-      fullTitle: product.loyaltyBadge.label || (isLimited ? 'Limited Edition Creation' : 'Private Vault Exclusive'),
-      tagline: isLimited ? 'Numbered Artisan Release' : 'High Jewellery Maison Secret',
-      description: isLimited
-        ? 'A strictly capped production run with master goldsmith hallmark. Once exhausted, this piece is never recast.'
-        : 'Reserved exclusively for registered patrons. Handcrafted in single micro-batches with exceptional natural gems.',
-      editionText: product.loyaltyBadge.editionNumber,
-      perkText: product.loyaltyBadge.perkNote || 'Includes Velvet Presentation Box & Certificate',
-      icon: isLimited ? Gem : Crown,
-    };
-  }
-
-  // 2. Explicit isLimitedEdition boolean flag
-  if (product.isLimitedEdition) {
-    const pieces = product.limitedPiecesCount ? `Limited run of ${product.limitedPiecesCount}` : 'Numbered Master Cast';
-    return {
-      displayLabel: 'Limited Edition',
-      fullTitle: 'Limited Edition Creation',
-      tagline: 'Numbered Artisan Release',
-      description: 'A strictly capped production run with engraved authenticity serial number. Individually hallmarked.',
-      editionText: pieces,
-      perkText: 'Includes Certificate of Authenticity & Valuation',
-      icon: Gem,
-    };
-  }
-
-  // 3. High-tier boutique pieces (Bridal Sets or creations $2,500+) qualify as Exclusive
-  if (product.category === 'sets' || product.price >= 2500) {
-    const isVeryHighTier = product.price >= 3500;
-    return {
-      displayLabel: isVeryHighTier ? 'Exclusive' : 'Limited Edition',
-      fullTitle: isVeryHighTier ? 'Maison Vault Exclusive' : 'Limited Edition Atelier Piece',
-      tagline: 'Private Client Reserve',
-      description: 'Crafted with certified natural gemstones and solid 18K/22K gold, accompanied by white-glove insured delivery.',
-      editionText: isVeryHighTier ? 'Vault Allocation' : 'Artisan Batch',
-      perkText: 'Complimentary Insured Courier & Velvet Box',
-      icon: isVeryHighTier ? Crown : Gem,
-    };
-  }
-
-  // 4. Products with rare precious gemstones (Emerald, Sapphire, or 22K Solid Gold)
-  if (
-    product.details?.stone?.toLowerCase().includes('emerald') || 
-    product.details?.stone?.toLowerCase().includes('sapphire') ||
-    product.details?.metal?.toLowerCase().includes('22k')
-  ) {
-    return {
-      displayLabel: 'Exclusive',
-      fullTitle: 'Precious Gemstone Exclusive',
-      tagline: 'Selected Natural Color Gem',
-      description: 'Features certified untreated natural stones selected for supreme saturation and clarity.',
-      editionText: 'Master Gemstone Lot',
-      perkText: 'Lab Certified Origin & Authenticity',
-      icon: Crown,
-    };
-  }
-
+  // Scarcity / exclusivity badges are disabled: they were decorative claims, not real product data.
+  void product;
   return null;
 }
 

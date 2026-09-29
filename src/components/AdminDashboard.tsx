@@ -36,33 +36,35 @@ import {
 } from 'lucide-react';
 import { Product, Order, StoreSettings, NewsletterSubscriber } from '../types';
 import { fetchSubscribers, deleteSubscriber } from '../services/storeService';
-import { LoyaltyBadge } from './LoyaltyBadge';
+import { formatPrice } from '../lib/format';
+import { ProductForm } from './admin/ProductForm';
+import { CategoriesTab } from './admin/CategoriesTab';
+import { ReviewsTab } from './admin/ReviewsTab';
+import { SettingsTab } from './admin/SettingsTab';
 
 export const AdminDashboard: React.FC = () => {
-  const { 
-    isAdminOpen, 
-    closeAdmin, 
-    isAdmin, 
-    adminUser, 
-    adminLogin, 
+  const {
+    isAdminOpen,
+    closeAdmin,
+    isAdmin,
+    adminLogin,
     adminLogout,
     user,
-    signInGoogle,
-    products, 
-    orders, 
-    reviews, 
-    settings, 
+    allProducts: products,
+    categories,
+    orders,
+    settings,
     updateOrderStatus,
     handleSaveProduct,
     handleDeleteProduct,
+    handleSaveCategory,
+    handleDeleteCategory,
     handleUpdateSettings,
-    adminNotifications,
-    clearAdminNotifications,
     showToast
   } = useStore();
 
-  const [activeTab, setActiveTab] = useState<'overview' | 'orders' | 'products' | 'reviews' | 'settings' | 'subscribers'>('overview');
-  const [adminEmailInput, setAdminEmailInput] = useState('auraadornjewellers@gmail.com');
+  const [activeTab, setActiveTab] = useState<'overview' | 'orders' | 'products' | 'categories' | 'reviews' | 'settings' | 'subscribers'>('overview');
+  const [adminEmailInput, setAdminEmailInput] = useState('');
   const [adminPasswordInput, setAdminPasswordInput] = useState('');
   const [authError, setAuthError] = useState('');
 
@@ -71,8 +73,8 @@ export const AdminDashboard: React.FC = () => {
   const [subscriberSearch, setSubscriberSearch] = useState('');
 
   useEffect(() => {
-    if (isAdminOpen) {
-      fetchSubscribers(isAdmin).then(data => setSubscribers(data));
+    if (isAdminOpen && isAdmin) {
+      fetchSubscribers().then(setSubscribers).catch(() => setSubscribers([]));
     }
   }, [isAdminOpen, activeTab, isAdmin]);
 
@@ -82,15 +84,13 @@ export const AdminDashboard: React.FC = () => {
   const [selectedOrderForInvoice, setSelectedOrderForInvoice] = useState<Order | null>(null);
   const [selectedOrderForDetails, setSelectedOrderForDetails] = useState<Order | null>(null);
   const [trackingNumberInput, setTrackingNumberInput] = useState<string>('');
-  const [courierNameInput, setCourierNameInput] = useState<string>('TCS Express');
+  const [courierNameInput, setCourierNameInput] = useState<string>('');
   const [isUpdatingOrder, setIsUpdatingOrder] = useState<boolean>(false);
 
   // Product Edit / Add State
   const [isEditingProduct, setIsEditingProduct] = useState(false);
   const [editingProduct, setEditingProduct] = useState<Partial<Product> | null>(null);
 
-  // Settings form state
-  const [settingsForm, setSettingsForm] = useState<StoreSettings>(settings);
 
   if (!isAdminOpen) return null;
 
@@ -106,11 +106,11 @@ export const AdminDashboard: React.FC = () => {
 
   // Metrics calculation
   const totalRevenue = orders
-    .filter(o => (o.status || o.orderStatus) !== 'cancelled')
+    .filter(o => o.status !== 'cancelled')
     .reduce((sum, o) => sum + o.totalAmount, 0);
 
-  const pendingOrdersCount = orders.filter(o => (o.status || o.orderStatus) === 'pending').length;
-  const deliveredOrdersCount = orders.filter(o => (o.status || o.orderStatus) === 'delivered').length;
+  const pendingOrdersCount = orders.filter(o => o.status === 'pending').length;
+  const deliveredOrdersCount = orders.filter(o => o.status === 'delivered').length;
   const lowStockProducts = products.filter(p => p.stock <= 3);
 
   // Filtered orders
@@ -129,31 +129,15 @@ export const AdminDashboard: React.FC = () => {
   const handleStartAddProduct = () => {
     setEditingProduct({
       name: '',
-      category: 'rings',
-      subCategory: 'Solitaire Rings',
-      price: 1500,
-      originalPrice: 1800,
-      discountPercentage: 16,
-      stock: 5,
-      rating: 5,
-      reviewCount: 1,
-      isFeatured: true,
-      isBestSeller: false,
-      isNewArrival: true,
+      category: categories[0]?.slug || '',
+      price: 0,
+      stock: 1,
       status: 'active',
-      images: [
-        'https://images.unsplash.com/photo-1605100804763-247f67b3557e?auto=format&fit=crop&w=1000&q=85'
-      ],
-      description: 'Handcrafted in pure hallmarked 18K gold featuring brilliant cut center stones.',
-      details: {
-        metal: '18K Solid Warm Yellow Gold',
-        karat: '18 Karat Hallmarked',
-        weight: '4.20 grams',
-        stone: 'VVS1 Brilliant Cut Diamond',
-        gemstoneWeight: '1.25 Carats',
-        certification: 'GIA Certified (Report No. GIA-2026-9081)',
-        dimensions: 'Band width: 2.1mm'
-      }
+      isNewArrival: true,
+      images: [],
+      description: '',
+      details: { metal: '' },
+      options: []
     });
     setIsEditingProduct(true);
   };
@@ -161,22 +145,6 @@ export const AdminDashboard: React.FC = () => {
   const handleStartEditProduct = (prod: Product) => {
     setEditingProduct({ ...prod });
     setIsEditingProduct(true);
-  };
-
-  const handleSaveProductForm = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!editingProduct?.name || !editingProduct?.price) {
-      showToast('Product name and price are mandatory.', 'info');
-      return;
-    }
-    await handleSaveProduct(editingProduct);
-    setIsEditingProduct(false);
-    setEditingProduct(null);
-  };
-
-  const handleSaveSettingsSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    await handleUpdateSettings(settingsForm);
   };
 
   const handleSaveOrderTracking = async () => {
@@ -209,40 +177,25 @@ export const AdminDashboard: React.FC = () => {
             <div className="w-10 h-10 rounded-full overflow-hidden border border-[#C9A25D] bg-[#0B0A08] p-0.5 shadow-[0_0_15px_rgba(201,162,93,0.4)] shrink-0">
               <img 
                 src="/logo.png" 
-                alt="AA JEWELLERS Logo" 
+                alt="Logo" 
                 onError={(e) => { (e.currentTarget as HTMLImageElement).src = '/icon.svg'; }}
                 className="w-full h-full object-cover rounded-full" 
               />
             </div>
             <div>
               <h2 className="font-serif text-lg font-medium text-white flex items-center gap-2">
-                AA JEWELLERS • Vault Control Room
+                {settings.brandName} • Admin
                 <span className="text-[10px] uppercase font-sans tracking-widest bg-gradient-to-r from-[#C9A25D] to-[#E5C378] text-[#0B0A08] font-bold px-2 py-0.5 rounded">
                   Admin
                 </span>
               </h2>
               <p className="text-[11px] font-sans text-stone-400">
-                Owner: auraadornjewellers@gmail.com
+                {user?.email ? `Signed in: ${user.email}` : 'Admin sign-in'}
               </p>
             </div>
           </div>
 
           <div className="flex items-center gap-3">
-            {isAdmin && (user?.email === 'auraadornjewellers@gmail.com' || user?.email === 'nirbanmubashirzubair@gmail.com') && (
-              <span className="hidden sm:inline-flex items-center gap-1.5 px-3 py-1 bg-emerald-950/80 text-emerald-300 border border-emerald-500/30 rounded-full text-[11px] font-sans">
-                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-                Live Cloud Sync Active
-              </span>
-            )}
-            {isAdmin && !(user?.email === 'auraadornjewellers@gmail.com' || user?.email === 'nirbanmubashirzubair@gmail.com') && (
-              <button
-                onClick={signInGoogle}
-                className="hidden sm:inline-flex items-center gap-1.5 px-3 py-1 bg-[#C9A25D]/20 text-[#C9A25D] hover:bg-[#C9A25D]/30 border border-[#C9A25D]/40 rounded-full text-[11px] font-sans transition-colors cursor-pointer"
-                title="Connect with Google (auraadornjewellers@gmail.com) for real-time Firestore database sync"
-              >
-                <span>⚡ Connect Google Cloud</span>
-              </button>
-            )}
             {isAdmin && (
               <button
                 onClick={adminLogout}
@@ -271,7 +224,7 @@ export const AdminDashboard: React.FC = () => {
                 </div>
                 <h3 className="font-serif text-2xl text-[#FAF7F2]">Store Administrator Access</h3>
                 <p className="text-xs font-sans text-[#A89F91]">
-                  Authorized access reserved for the boutique owner (<span className="text-[#E5C378] font-medium">auraadornjewellers@gmail.com</span>) to manage commissions and vault products.
+                  Sign in with your admin email and password.
                 </p>
               </div>
 
@@ -281,52 +234,24 @@ export const AdminDashboard: React.FC = () => {
                 </div>
               )}
 
-              {/* Direct Google Sign-In for Owner */}
-              <button
-                type="button"
-                onClick={async () => {
-                  setAuthError('');
-                  try {
-                    await signInGoogle();
-                  } catch (e: any) {
-                    setAuthError(e.message || 'Google sign-in error');
-                  }
-                }}
-                className="w-full py-3.5 bg-[#14120F] hover:bg-[#1E1A16] text-[#FAF7F2] border border-[#C9A25D]/60 hover:border-[#C9A25D] font-sans text-xs font-semibold rounded-xl transition-all cursor-pointer shadow-sm flex items-center justify-center gap-2.5"
-              >
-                <svg className="w-4 h-4" viewBox="0 0 24 24">
-                  <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
-                  <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
-                  <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z"/>
-                  <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"/>
-                </svg>
-                <span>Sign in with Google (Owner Account)</span>
-              </button>
-
-              <div className="flex items-center gap-3">
-                <div className="h-px flex-1 bg-[#26211B]" />
-                <span className="text-[11px] font-sans text-stone-500 uppercase tracking-widest">Or enter Admin credentials</span>
-                <div className="h-px flex-1 bg-[#26211B]" />
-              </div>
-
               <form onSubmit={handleAdminAuth} className="space-y-4 bg-[#14120F] p-6 rounded-2xl border border-[#26211B] shadow-sm">
                 <div>
                   <label className="block text-xs font-sans font-medium text-[#D8CDC0] mb-1">
-                    Owner Admin ID or Email
+                    Admin email
                   </label>
                   <input
                     type="text"
                     required
                     value={adminEmailInput}
                     onChange={(e) => setAdminEmailInput(e.target.value)}
-                    placeholder="admin or auraadornjewellers@gmail.com"
+                    placeholder="you@example.com"
                     className="w-full bg-[#0E0D0B] border border-[#2E2822] rounded-xl p-3 text-xs font-sans text-[#FAF7F2] focus:outline-none focus:border-[#C9A25D]"
                   />
                 </div>
 
                 <div>
                   <label className="block text-xs font-sans font-medium text-[#D8CDC0] mb-1">
-                    Admin Password (default: admin123)
+                    Password
                   </label>
                   <input
                     type="password"
@@ -342,36 +267,13 @@ export const AdminDashboard: React.FC = () => {
                   type="submit"
                   className="w-full py-3.5 bg-gradient-to-r from-[#C9A25D] via-[#E5C378] to-[#C9A25D] text-[#0B0A08] font-sans text-xs font-bold uppercase tracking-wider rounded-xl hover:brightness-110 transition-all cursor-pointer shadow-md"
                 >
-                  Unlock Vault Panel
+                  Sign In
                 </button>
               </form>
             </div>
           ) : (
             /* Admin Authenticated Dashboard */
             <div className="space-y-8">
-              {/* Notification Banner if there are new orders */}
-              {adminNotifications.length > 0 && (
-                <div className="p-4 bg-[#14120F] text-[#FAF7F2] rounded-2xl border border-[#C9A25D] shadow-md flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <Sparkles className="w-5 h-5 text-[#C9A25D] animate-bounce" />
-                    <div>
-                      <p className="text-sm font-serif font-medium text-white">
-                        {adminNotifications.length} New Commission Order(s) Received!
-                      </p>
-                      <p className="text-xs text-stone-300 font-sans">
-                        Notifications automatically logged for auraadornjewellers@gmail.com.
-                      </p>
-                    </div>
-                  </div>
-                  <button
-                    onClick={clearAdminNotifications}
-                    className="text-xs font-sans bg-[#C9A25D] text-[#0B0A08] font-bold px-3 py-1.5 rounded-lg hover:bg-[#E5C378] cursor-pointer"
-                  >
-                    Acknowledge
-                  </button>
-                </div>
-              )}
-
               {/* Navigation Tabs */}
               <div className="flex border-b border-[#26211B] space-x-6 text-xs font-sans uppercase tracking-widest font-medium overflow-x-auto pb-px">
                 <button
@@ -381,7 +283,7 @@ export const AdminDashboard: React.FC = () => {
                   }`}
                 >
                   <TrendingUp className="w-4 h-4" />
-                  <span>Metrics Overview</span>
+                  <span>Overview</span>
                 </button>
                 <button
                   onClick={() => setActiveTab('orders')}
@@ -390,7 +292,7 @@ export const AdminDashboard: React.FC = () => {
                   }`}
                 >
                   <ShoppingBag className="w-4 h-4" />
-                  <span>Orders & COD Dispatch ({orders.length})</span>
+                  <span>Orders ({orders.length})</span>
                 </button>
                 <button
                   onClick={() => setActiveTab('products')}
@@ -399,7 +301,25 @@ export const AdminDashboard: React.FC = () => {
                   }`}
                 >
                   <Package className="w-4 h-4" />
-                  <span>Vault Inventory ({products.length})</span>
+                  <span>Products ({products.length})</span>
+                </button>
+                <button
+                  onClick={() => setActiveTab('categories')}
+                  className={`py-3 border-b-2 cursor-pointer whitespace-nowrap flex items-center gap-2 ${
+                    activeTab === 'categories' ? 'border-[#C9A25D] text-[#C9A25D] font-semibold' : 'border-transparent text-stone-500'
+                  }`}
+                >
+                  <Package className="w-4 h-4" />
+                  <span>Categories</span>
+                </button>
+                <button
+                  onClick={() => setActiveTab('reviews')}
+                  className={`py-3 border-b-2 cursor-pointer whitespace-nowrap flex items-center gap-2 ${
+                    activeTab === 'reviews' ? 'border-[#C9A25D] text-[#C9A25D] font-semibold' : 'border-transparent text-stone-500'
+                  }`}
+                >
+                  <Star className="w-4 h-4" />
+                  <span>Reviews</span>
                 </button>
                 <button
                   onClick={() => setActiveTab('settings')}
@@ -408,7 +328,7 @@ export const AdminDashboard: React.FC = () => {
                   }`}
                 >
                   <SettingsIcon className="w-4 h-4" />
-                  <span>Boutique Settings & Policies</span>
+                  <span>Settings</span>
                 </button>
                 <button
                   onClick={() => setActiveTab('subscribers')}
@@ -417,7 +337,7 @@ export const AdminDashboard: React.FC = () => {
                   }`}
                 >
                   <Mail className="w-4 h-4" />
-                  <span>Launch Subscribers ({subscribers.length})</span>
+                  <span>Subscribers ({subscribers.length})</span>
                 </button>
               </div>
 
@@ -432,10 +352,10 @@ export const AdminDashboard: React.FC = () => {
                         <DollarSign className="w-4 h-4 text-[#C9A25D]" />
                       </div>
                       <p className="font-serif text-2xl font-bold text-[#E5C378]">
-                        ${totalRevenue.toLocaleString()}
+                        {formatPrice(totalRevenue)}
                       </p>
                       <span className="text-[11px] text-emerald-400 font-sans mt-1 block">
-                        Across {orders.length} commissions
+                        Across {orders.length} orders
                       </span>
                     </div>
 
@@ -454,7 +374,7 @@ export const AdminDashboard: React.FC = () => {
 
                     <div className="p-5 bg-[#14120F] rounded-2xl border border-[#26211B] shadow-sm">
                       <div className="flex items-center justify-between text-[#A89F91] mb-2">
-                        <span className="text-xs font-sans uppercase tracking-wider font-semibold">Vault Jewels</span>
+                        <span className="text-xs font-sans uppercase tracking-wider font-semibold">Products</span>
                         <Package className="w-4 h-4 text-[#C9A25D]" />
                       </div>
                       <p className="font-serif text-2xl font-bold text-[#FAF7F2]">
@@ -487,7 +407,7 @@ export const AdminDashboard: React.FC = () => {
                         <Mail className="w-4 h-4 text-[#C9A25D]" />
                       </div>
                       <p className="font-serif text-2xl font-bold text-[#E5C378]">
-                        {subscribers.length} Patrons
+                        {subscribers.length} subscribers
                       </p>
                       <span className="text-[11px] text-[#E5C378]/80 font-sans mt-1 block font-medium">
                         Launch list roster →
@@ -498,7 +418,7 @@ export const AdminDashboard: React.FC = () => {
                   {/* Recent Orders List */}
                   <div className="bg-[#14120F] rounded-2xl border border-[#26211B] p-6 space-y-4">
                     <div className="flex items-center justify-between">
-                      <h3 className="font-serif text-lg text-[#FAF7F2]">Latest Client Commissions</h3>
+                      <h3 className="font-serif text-lg text-[#FAF7F2]">Latest Orders</h3>
                       <button
                         onClick={() => setActiveTab('orders')}
                         className="text-xs font-sans text-[#E5C378] font-semibold hover:underline flex items-center gap-1 cursor-pointer"
@@ -516,7 +436,7 @@ export const AdminDashboard: React.FC = () => {
                             <p className="text-[#A89F91]">{order.customerName} • {order.city}</p>
                           </div>
                           <div className="text-[#D8CDC0]">
-                            {order.items.length} item(s) • <strong className="text-[#E5C378]">${order.totalAmount.toLocaleString()}</strong>
+                            {order.items.length} item(s) • <strong className="text-[#E5C378]">{formatPrice(order.totalAmount)}</strong>
                           </div>
                           <div>
                             <span className={`px-2.5 py-1 rounded-full uppercase text-[10px] font-semibold border ${
@@ -538,6 +458,7 @@ export const AdminDashboard: React.FC = () => {
                               onClick={() => {
                                 setSelectedOrderForDetails(order);
                                 setTrackingNumberInput(order.trackingNumber || '');
+                                        setCourierNameInput(order.courierName || '');
                               }}
                               className="px-2.5 py-1.5 rounded-lg border border-[#2E2822] hover:border-[#C9A25D] text-xs font-medium text-[#FAF7F2] hover:text-[#E5C378] transition-colors flex items-center gap-1 cursor-pointer"
                             >
@@ -611,7 +532,7 @@ export const AdminDashboard: React.FC = () => {
                           {filteredOrders.length === 0 ? (
                             <tr>
                               <td colSpan={6} className="p-8 text-center text-stone-400 italic">
-                                No commissions matching the criteria.
+                                No orders match your search.
                               </td>
                             </tr>
                           ) : (
@@ -632,14 +553,14 @@ export const AdminDashboard: React.FC = () => {
                                   <div className="space-y-1 max-w-xs">
                                     {order.items.map((item, i) => (
                                       <p key={i} className="text-[11px] text-[#D8CDC0] truncate">
-                                        • {item.quantity}x {item.productName} ({item.metal || '18K'})
+                                        • {item.quantity}x {item.productName} {item.size ? `(${item.size})` : ''}
                                       </p>
                                     ))}
                                   </div>
                                 </td>
                                 <td className="p-4">
                                   <p className="font-serif text-sm font-bold text-[#E5C378]">
-                                    ${order.totalAmount.toLocaleString()}
+                                    {formatPrice(order.totalAmount)}
                                   </p>
                                   <span className="text-[10px] text-stone-400 block">Cash on Delivery</span>
                                 </td>
@@ -673,6 +594,7 @@ export const AdminDashboard: React.FC = () => {
                                       onClick={() => {
                                         setSelectedOrderForDetails(order);
                                         setTrackingNumberInput(order.trackingNumber || '');
+                                        setCourierNameInput(order.courierName || '');
                                       }}
                                       className="px-2.5 py-1.5 rounded-lg border border-[#2E2822] hover:border-[#C9A25D] text-xs font-medium text-[#FAF7F2] hover:text-[#E5C378] transition-colors flex items-center gap-1 cursor-pointer"
                                       title="View comprehensive order details"
@@ -705,9 +627,9 @@ export const AdminDashboard: React.FC = () => {
                 <div className="space-y-6 animate-in fade-in">
                   <div className="flex items-center justify-between">
                     <div>
-                      <h3 className="font-serif text-lg text-[#FAF7F2]">Haute Jewellery Vault Inventory</h3>
+                      <h3 className="font-serif text-lg text-[#FAF7F2]">Products</h3>
                       <p className="text-xs font-sans text-[#A89F91]">
-                        Create, modify prices, update stock, and curate featured solitaires.
+                        Add products, update prices and stock, and upload photos.
                       </p>
                     </div>
                     <button
@@ -743,14 +665,14 @@ export const AdminDashboard: React.FC = () => {
                               </span>
                             </div>
                             <div className="my-1">
-                              <LoyaltyBadge product={prod} variant="compact" />
+                              
                             </div>
                             <h4 className="font-serif text-sm font-medium text-[#FAF7F2] truncate">{prod.name}</h4>
                             <p className="font-serif text-sm font-bold text-[#E5C378] mt-0.5">
-                              ${prod.price.toLocaleString()}
+                              {formatPrice(prod.price)}
                               {prod.originalPrice > prod.price && (
                                 <span className="font-sans text-xs text-stone-500 line-through ml-2">
-                                  ${prod.originalPrice.toLocaleString()}
+                                  {formatPrice(prod.originalPrice)}
                                 </span>
                               )}
                             </p>
@@ -779,94 +701,16 @@ export const AdminDashboard: React.FC = () => {
                 </div>
               )}
 
-              {/* TAB 4: SETTINGS */}
-              {activeTab === 'settings' && (
-                <form onSubmit={handleSaveSettingsSubmit} className="space-y-6 bg-[#14120F] p-6 rounded-2xl border border-[#26211B] animate-in fade-in">
-                  <div className="border-b border-[#241F1A] pb-4">
-                    <h3 className="font-serif text-lg text-[#FAF7F2]">Boutique Identity & Contact</h3>
-                    <p className="text-xs font-sans text-[#A89F91]">
-                      Configure store identity, phone numbers, and notification recipients.
-                    </p>
-                  </div>
+              {/* TAB: SETTINGS */}
+              {activeTab === 'settings' && <SettingsTab settings={settings} onSave={handleUpdateSettings} />}
 
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    <div>
-                      <label className="block text-xs font-medium text-stone-300 mb-1">Brand Name</label>
-                      <input
-                        type="text"
-                        value={settingsForm.brandName}
-                        onChange={(e) => setSettingsForm({ ...settingsForm, brandName: e.target.value })}
-                        className="w-full p-2.5 text-xs bg-[#0E0D0B] text-[#FAF7F2] border border-[#2E2822] rounded-xl focus:outline-none focus:border-[#C9A25D]"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-xs font-medium text-stone-300 mb-1">Tagline</label>
-                      <input
-                        type="text"
-                        value={settingsForm.tagline}
-                        onChange={(e) => setSettingsForm({ ...settingsForm, tagline: e.target.value })}
-                        className="w-full p-2.5 text-xs bg-[#0E0D0B] text-[#FAF7F2] border border-[#2E2822] rounded-xl focus:outline-none focus:border-[#C9A25D]"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-xs font-medium text-stone-300 mb-1">Owner Email (Notifications)</label>
-                      <input
-                        type="email"
-                        value={settingsForm.email}
-                        onChange={(e) => setSettingsForm({ ...settingsForm, email: e.target.value })}
-                        className="w-full p-2.5 text-xs bg-[#0E0D0B] text-[#FAF7F2] border border-[#2E2822] rounded-xl focus:outline-none focus:border-[#C9A25D]"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-xs font-medium text-stone-300 mb-1">WhatsApp Number (Orders)</label>
-                      <input
-                        type="text"
-                        value={settingsForm.whatsappNumber}
-                        onChange={(e) => setSettingsForm({ ...settingsForm, whatsappNumber: e.target.value })}
-                        className="w-full p-2.5 text-xs bg-[#0E0D0B] text-[#FAF7F2] border border-[#2E2822] rounded-xl focus:outline-none focus:border-[#C9A25D]"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-xs font-medium text-stone-300 mb-1">Boutique Phone</label>
-                      <input
-                        type="text"
-                        value={settingsForm.phone}
-                        onChange={(e) => setSettingsForm({ ...settingsForm, phone: e.target.value })}
-                        className="w-full p-2.5 text-xs bg-[#0E0D0B] text-[#FAF7F2] border border-[#2E2822] rounded-xl focus:outline-none focus:border-[#C9A25D]"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-xs font-medium text-stone-300 mb-1">Free Delivery Threshold ($)</label>
-                      <input
-                        type="number"
-                        value={settingsForm.freeDeliveryThreshold}
-                        onChange={(e) => setSettingsForm({ ...settingsForm, freeDeliveryThreshold: Number(e.target.value) })}
-                        className="w-full p-2.5 text-xs bg-[#0E0D0B] text-[#FAF7F2] border border-[#2E2822] rounded-xl focus:outline-none focus:border-[#C9A25D]"
-                      />
-                    </div>
-                  </div>
-
-                  <div>
-                    <label className="block text-xs font-medium text-stone-300 mb-1">Top Announcement Bar Text</label>
-                    <input
-                      type="text"
-                      value={settingsForm.announcementText}
-                      onChange={(e) => setSettingsForm({ ...settingsForm, announcementText: e.target.value })}
-                      className="w-full p-2.5 text-xs bg-[#0E0D0B] text-[#FAF7F2] border border-[#2E2822] rounded-xl focus:outline-none focus:border-[#C9A25D]"
-                    />
-                  </div>
-
-                  <div className="pt-4 border-t border-[#241F1A]">
-                    <button
-                      type="submit"
-                      className="px-6 py-3 bg-gradient-to-r from-[#C9A25D] via-[#E5C378] to-[#C9A25D] text-[#0B0A08] font-sans text-xs font-bold uppercase tracking-wider rounded-xl transition-all cursor-pointer shadow-md hover:brightness-110 flex items-center gap-2"
-                    >
-                      <Save className="w-4 h-4" />
-                      <span>Save Boutique Settings</span>
-                    </button>
-                  </div>
-                </form>
+              {/* TAB: CATEGORIES */}
+              {activeTab === 'categories' && (
+                <CategoriesTab categories={categories} products={products} onSave={handleSaveCategory} onDelete={handleDeleteCategory} />
               )}
+
+              {/* TAB: REVIEWS */}
+              {activeTab === 'reviews' && <ReviewsTab showToast={showToast} />}
 
               {/* TAB 5: LAUNCH SUBSCRIBERS */}
               {activeTab === 'subscribers' && (
@@ -878,7 +722,7 @@ export const AdminDashboard: React.FC = () => {
                         <h3 className="font-serif text-xl text-[#FAF7F2]">Private Launch & Vernissage Subscribers</h3>
                       </div>
                       <p className="text-xs font-sans text-[#A89F91] mt-1">
-                        High-intent patrons registered for upcoming high-jewellery releases and private salon events.
+                        People who subscribed to your newsletter.
                       </p>
                     </div>
 
@@ -980,7 +824,7 @@ export const AdminDashboard: React.FC = () => {
                                   <td className="p-4">
                                     <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-950/80 text-emerald-300 border border-emerald-500/30">
                                       <CheckCircle2 className="w-3 h-3 text-emerald-400" />
-                                      Active Patron
+                                      Active
                                     </span>
                                   </td>
                                   <td className="p-4 text-right">
@@ -1023,7 +867,7 @@ export const AdminDashboard: React.FC = () => {
                     <div className="w-9 h-9 rounded-full overflow-hidden border border-[#C9A25D] bg-[#0E0D0B] shrink-0 p-0.5 shadow-sm">
                       <img 
                         src="/logo.png" 
-                        alt="AA JEWELLERS" 
+                        alt="Logo" 
                         onError={(e) => { (e.currentTarget as HTMLImageElement).src = '/icon.svg'; }} 
                         className="w-full h-full object-cover rounded-full" 
                       />
@@ -1065,16 +909,16 @@ export const AdminDashboard: React.FC = () => {
 
               {/* Main Content Grid */}
               <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-                {/* Left Column: Patron Details & Courier Dispatch */}
+                {/* Left Column: Customer Details & Courier */}
                 <div className="lg:col-span-6 space-y-6">
-                  {/* Patron Details Card */}
+                  {/* Customer Details Card */}
                   <div className="p-5 bg-[#14120F] rounded-2xl border border-[#26211B] space-y-4">
                     <div className="flex items-center justify-between border-b border-[#241F1A] pb-3">
                       <h4 className="font-serif text-sm font-semibold text-[#E5C378] uppercase tracking-wider flex items-center gap-2">
                         <Users className="w-4 h-4 text-[#C9A25D]" />
-                        <span>Patron Identity & Delivery</span>
+                        <span>Customer & Delivery</span>
                       </h4>
-                      <span className="text-[10px] font-sans text-stone-400">COD Commission</span>
+                      <span className="text-[10px] font-sans text-stone-400">Cash on Delivery</span>
                     </div>
 
                     <div className="space-y-3 text-xs font-sans">
@@ -1115,11 +959,11 @@ export const AdminDashboard: React.FC = () => {
                       )}
                     </div>
 
-                    {/* Patron Communication Buttons */}
+                    {/* Customer Contact Buttons */}
                     <div className="pt-3 border-t border-[#241F1A] flex gap-2">
                       <a
                         href={`https://wa.me/${selectedOrderForDetails.phone.replace(/[^0-9]/g, '')}?text=${encodeURIComponent(
-                          `Assalam-o-Alaikum ${selectedOrderForDetails.customerName}, this is AA JEWELERS regarding your Haute Jewellery Order #${selectedOrderForDetails.id} of $${selectedOrderForDetails.totalAmount.toLocaleString()}.`
+                          `Assalam-o-Alaikum ${selectedOrderForDetails.customerName}, this is ${settings.brandName} regarding your order ${selectedOrderForDetails.id} (${formatPrice(selectedOrderForDetails.totalAmount)}, Cash on Delivery). Please confirm your order and address.`
                         )}`}
                         target="_blank"
                         rel="noopener noreferrer"
@@ -1155,7 +999,7 @@ export const AdminDashboard: React.FC = () => {
                         >
                           <option value="pending" className="bg-[#0E0D0B] text-amber-300">Pending Verification</option>
                           <option value="confirmed" className="bg-[#0E0D0B] text-purple-300">Confirmed</option>
-                          <option value="processing" className="bg-[#0E0D0B] text-blue-300">Processing & Atelier Boxing</option>
+                          <option value="processing" className="bg-[#0E0D0B] text-blue-300">Packed</option>
                           <option value="shipped" className="bg-[#0E0D0B] text-sky-300">Dispatched / Shipped</option>
                           <option value="delivered" className="bg-[#0E0D0B] text-emerald-300">Delivered & Paid</option>
                           <option value="cancelled" className="bg-[#0E0D0B] text-rose-300">Cancelled</option>
@@ -1192,7 +1036,7 @@ export const AdminDashboard: React.FC = () => {
                         className="w-full py-2.5 bg-gradient-to-r from-[#C9A25D] via-[#E5C378] to-[#C9A25D] text-[#0B0A08] font-sans text-xs font-bold uppercase tracking-wider rounded-xl transition-all cursor-pointer shadow-md hover:brightness-110 flex items-center justify-center gap-2 disabled:opacity-50"
                       >
                         <Check className="w-4 h-4" />
-                        <span>{isUpdatingOrder ? 'Saving...' : 'Save Tracking & Notify Client'}</span>
+                        <span>{isUpdatingOrder ? 'Saving...' : 'Save Courier & Tracking No.'}</span>
                       </button>
                     </div>
                   </div>
@@ -1205,9 +1049,9 @@ export const AdminDashboard: React.FC = () => {
                     <div className="flex items-center justify-between border-b border-[#241F1A] pb-3">
                       <h4 className="font-serif text-sm font-semibold text-[#E5C378] uppercase tracking-wider flex items-center gap-2">
                         <Package className="w-4 h-4 text-[#C9A25D]" />
-                        <span>Commissioned Jewels ({selectedOrderForDetails.items.length})</span>
+                        <span>Items ({selectedOrderForDetails.items.length})</span>
                       </h4>
-                      <span className="text-[10px] text-stone-400 font-sans">100% Certified Authentic</span>
+                      <span className="text-[10px] text-stone-400 font-sans"></span>
                     </div>
 
                     <div className="space-y-3 max-h-[300px] overflow-y-auto pr-1 divide-y divide-[#241F1A]">
@@ -1224,13 +1068,13 @@ export const AdminDashboard: React.FC = () => {
                             <div>
                               <p className="font-medium text-[#FAF7F2]">{item.productName}</p>
                               <p className="text-[11px] text-[#A89F91]">
-                                {item.metal || '18K Yellow Gold'} • Qty: <strong className="text-[#E5C378]">{item.quantity}</strong>
+                                {item.size ? `${item.size} • ` : ''}Qty: <strong className="text-[#E5C378]">{item.quantity}</strong>
                               </p>
-                              <p className="text-[10px] text-stone-400">Unit: ${item.price.toLocaleString()}</p>
+                              <p className="text-[10px] text-stone-400">Unit: {formatPrice(item.price)}</p>
                             </div>
                           </div>
                           <div className="text-right">
-                            <p className="font-serif text-sm font-bold text-[#E5C378]">${item.total.toLocaleString()}</p>
+                            <p className="font-serif text-sm font-bold text-[#E5C378]">{formatPrice(item.total)}</p>
                           </div>
                         </div>
                       ))}
@@ -1240,7 +1084,7 @@ export const AdminDashboard: React.FC = () => {
                   {/* Financial Audit Card */}
                   <div className="p-5 bg-[#14120F] rounded-2xl border border-[#26211B] space-y-3 text-xs font-sans">
                     <h4 className="font-serif text-sm font-semibold text-[#E5C378] uppercase tracking-wider border-b border-[#241F1A] pb-3 flex items-center justify-between">
-                      <span>Commission Financial Summary</span>
+                      <span>Payment Summary</span>
                       <span className="text-[10px] font-sans px-2 py-0.5 rounded bg-[#C9A25D]/20 text-[#E5C378] border border-[#C9A25D]/30">
                         Cash on Delivery
                       </span>
@@ -1249,22 +1093,22 @@ export const AdminDashboard: React.FC = () => {
                     <div className="space-y-2 text-[#D8CDC0]">
                       <div className="flex justify-between">
                         <span className="text-[#A89F91]">Subtotal:</span>
-                        <span>${selectedOrderForDetails.subtotal.toLocaleString()}</span>
+                        <span>{formatPrice(selectedOrderForDetails.subtotal)}</span>
                       </div>
                       {selectedOrderForDetails.discount > 0 && (
                         <div className="flex justify-between text-rose-400">
                           <span>VIP Privilege Discount:</span>
-                          <span>-${selectedOrderForDetails.discount.toLocaleString()}</span>
+                          <span>-{formatPrice(selectedOrderForDetails.discount)}</span>
                         </div>
                       )}
                       <div className="flex justify-between">
-                        <span className="text-[#A89F91]">Armoured Delivery & Insurance:</span>
-                        <span>{selectedOrderForDetails.deliveryCharge === 0 ? 'Complimentary ($0)' : `$${selectedOrderForDetails.deliveryCharge.toLocaleString()}`}</span>
+                        <span className="text-[#A89F91]">Delivery:</span>
+                        <span>{selectedOrderForDetails.deliveryCharge === 0 ? 'Complimentary ($0)' : `${formatPrice(selectedOrderForDetails.deliveryCharge)}`}</span>
                       </div>
                       <div className="border-t border-[#241F1A] pt-3 flex justify-between items-center text-sm">
                         <span className="font-serif font-bold text-[#FAF7F2]">Total Payable at Door:</span>
                         <span className="font-serif text-2xl font-bold text-[#E5C378]">
-                          ${selectedOrderForDetails.totalAmount.toLocaleString()}
+                          {formatPrice(selectedOrderForDetails.totalAmount)}
                         </span>
                       </div>
                     </div>
@@ -1310,14 +1154,14 @@ export const AdminDashboard: React.FC = () => {
                   <div className="w-12 h-12 rounded-full overflow-hidden border-2 border-[#C9A25D] bg-[#0E0D0B] shrink-0 p-0.5 shadow-md">
                     <img 
                       src="/logo.png" 
-                      alt="AA JEWELLERS" 
+                      alt="Logo" 
                       onError={(e) => { (e.currentTarget as HTMLImageElement).src = '/icon.svg'; }} 
                       className="w-full h-full object-cover rounded-full" 
                     />
                   </div>
                   <div>
                     <h2 className="font-serif text-2xl font-bold tracking-wider text-[#E5C378]">
-                      AA JEWELLERS
+                      {settings.brandName}
                     </h2>
                     <p className="text-[10px] text-[#A89F91] uppercase tracking-widest">Timeless Beauty • Refined Elegance</p>
                   </div>
@@ -1329,7 +1173,7 @@ export const AdminDashboard: React.FC = () => {
               </div>
 
               <div className="p-4 bg-[#14120F] rounded-2xl border border-[#26211B] text-xs font-sans space-y-1.5 text-[#D8CDC0]">
-                <p><span className="text-[#A89F91] font-semibold">Patron:</span> <strong className="text-[#FAF7F2]">{selectedOrderForInvoice.customerName}</strong></p>
+                <p><span className="text-[#A89F91] font-semibold">Customer:</span> <strong className="text-[#FAF7F2]">{selectedOrderForInvoice.customerName}</strong></p>
                 <p><span className="text-[#A89F91] font-semibold">Contact:</span> {selectedOrderForInvoice.phone} • {selectedOrderForInvoice.email}</p>
                 <p><span className="text-[#A89F91] font-semibold">Destination:</span> {selectedOrderForInvoice.address}, {selectedOrderForInvoice.city}</p>
                 <p><span className="text-[#A89F91] font-semibold">Payment Terms:</span> <span className="text-[#E5C378] font-medium">{selectedOrderForInvoice.paymentMethod}</span></p>
@@ -1338,18 +1182,18 @@ export const AdminDashboard: React.FC = () => {
               <div className="border-t border-b border-[#26211B] py-3 space-y-2">
                 {selectedOrderForInvoice.items.map((item, i) => (
                   <div key={i} className="flex justify-between text-xs font-sans text-[#FAF7F2]">
-                    <span>{item.quantity}x {item.productName} ({item.metal || '18K'})</span>
-                    <span className="font-serif font-medium text-[#E5C378]">${item.total.toLocaleString()}</span>
+                    <span>{item.quantity}x {item.productName} {item.size ? `(${item.size})` : ''}</span>
+                    <span className="font-serif font-medium text-[#E5C378]">{formatPrice(item.total)}</span>
                   </div>
                 ))}
               </div>
 
               <div className="text-xs font-sans space-y-1 text-right text-[#D8CDC0]">
-                <p>Subtotal: ${selectedOrderForInvoice.subtotal.toLocaleString()}</p>
-                {selectedOrderForInvoice.discount > 0 && <p className="text-rose-400">Privilege Discount: -${selectedOrderForInvoice.discount.toLocaleString()}</p>}
-                <p>Insured Delivery: ${selectedOrderForInvoice.deliveryCharge.toLocaleString()}</p>
+                <p>Subtotal: {formatPrice(selectedOrderForInvoice.subtotal)}</p>
+                {selectedOrderForInvoice.discount > 0 && <p className="text-rose-400">Privilege Discount: -{formatPrice(selectedOrderForInvoice.discount)}</p>}
+                <p>Delivery: {formatPrice(selectedOrderForInvoice.deliveryCharge)}</p>
                 <p className="text-lg font-serif font-bold text-[#E5C378] pt-2 border-t border-[#26211B]">
-                  Total Due: ${selectedOrderForInvoice.totalAmount.toLocaleString()}
+                  Total Due: {formatPrice(selectedOrderForInvoice.totalAmount)}
                 </p>
               </div>
 
@@ -1372,240 +1216,17 @@ export const AdminDashboard: React.FC = () => {
           </div>
         )}
 
-        {/* Product Edit / Add Modal (Luxury Black & Gold Theme) */}
+        {/* Product Edit / Add Modal */}
         {isEditingProduct && editingProduct && (
-          <div data-lenis-prevent className="fixed inset-0 z-60 bg-black/85 backdrop-blur-md flex items-center justify-center p-4 overflow-y-auto animate-in fade-in duration-200">
-            <div className="bg-[#0E0D0B] text-[#FAF7F2] w-full max-w-2xl rounded-3xl border border-[#C9A25D]/50 p-6 sm:p-8 space-y-6 shadow-[0_0_80px_rgba(0,0,0,0.95)] relative my-auto max-h-[90vh] overflow-y-auto">
-              <button
-                onClick={() => {
-                  setIsEditingProduct(false);
-                  setEditingProduct(null);
-                }}
-                className="absolute top-4 right-4 text-stone-400 hover:text-[#FAF7F2] cursor-pointer p-2 rounded-xl hover:bg-[#1A1714]"
-              >
-                <X className="w-5 h-5" />
-              </button>
-
-              <h3 className="font-serif text-xl text-[#FAF7F2] border-b border-[#241F1A] pb-3">
-                {editingProduct.id ? 'Edit Haute Jewel Creation' : 'Cast New Jewellery Piece'}
-              </h3>
-
-              <form onSubmit={handleSaveProductForm} className="space-y-4 text-xs font-sans">
-                <div>
-                  <label className="block font-medium text-stone-300 mb-1">Creation Name *</label>
-                  <input
-                    type="text"
-                    required
-                    value={editingProduct.name || ''}
-                    onChange={(e) => setEditingProduct({ ...editingProduct, name: e.target.value })}
-                    placeholder="e.g. Royal Solitaire Diamond Ring"
-                    className="w-full p-2.5 bg-[#14120F] text-[#FAF7F2] border border-[#2E2822] rounded-xl focus:outline-none focus:border-[#C9A25D]"
-                  />
-                </div>
-
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className="block font-medium text-stone-300 mb-1">Category</label>
-                    <select
-                      value={editingProduct.category || 'rings'}
-                      onChange={(e) => setEditingProduct({ ...editingProduct, category: e.target.value })}
-                      className="w-full p-2.5 bg-[#14120F] text-[#FAF7F2] border border-[#2E2822] rounded-xl focus:outline-none focus:border-[#C9A25D] cursor-pointer"
-                    >
-                      <option value="rings" className="bg-[#0E0D0B] text-[#FAF7F2]">Rings</option>
-                      <option value="necklaces" className="bg-[#0E0D0B] text-[#FAF7F2]">Necklaces</option>
-                      <option value="earrings" className="bg-[#0E0D0B] text-[#FAF7F2]">Earrings</option>
-                      <option value="bracelets" className="bg-[#0E0D0B] text-[#FAF7F2]">Bracelets</option>
-                      <option value="bangles" className="bg-[#0E0D0B] text-[#FAF7F2]">Bangles</option>
-                      <option value="sets" className="bg-[#0E0D0B] text-[#FAF7F2]">Sets</option>
-                    </select>
-                  </div>
-                  <div>
-                    <label className="block font-medium text-stone-300 mb-1">Subcategory</label>
-                    <input
-                      type="text"
-                      value={editingProduct.subCategory || ''}
-                      onChange={(e) => setEditingProduct({ ...editingProduct, subCategory: e.target.value })}
-                      placeholder="e.g. Solitaire Rings"
-                      className="w-full p-2.5 bg-[#14120F] text-[#FAF7F2] border border-[#2E2822] rounded-xl focus:outline-none focus:border-[#C9A25D]"
-                    />
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-3 gap-4">
-                  <div>
-                    <label className="block font-medium text-stone-300 mb-1">Sale Price ($) *</label>
-                    <input
-                      type="number"
-                      required
-                      value={editingProduct.price || 0}
-                      onChange={(e) => setEditingProduct({ ...editingProduct, price: Number(e.target.value) })}
-                      className="w-full p-2.5 bg-[#14120F] text-[#FAF7F2] border border-[#2E2822] rounded-xl focus:outline-none focus:border-[#C9A25D]"
-                    />
-                  </div>
-                  <div>
-                    <label className="block font-medium text-stone-300 mb-1">Original Price ($)</label>
-                    <input
-                      type="number"
-                      value={editingProduct.originalPrice || 0}
-                      onChange={(e) => setEditingProduct({ ...editingProduct, originalPrice: Number(e.target.value) })}
-                      className="w-full p-2.5 bg-[#14120F] text-[#FAF7F2] border border-[#2E2822] rounded-xl focus:outline-none focus:border-[#C9A25D]"
-                    />
-                  </div>
-                  <div>
-                    <label className="block font-medium text-stone-300 mb-1">Vault Stock Qty</label>
-                    <input
-                      type="number"
-                      value={editingProduct.stock || 1}
-                      onChange={(e) => setEditingProduct({ ...editingProduct, stock: Number(e.target.value) })}
-                      className="w-full p-2.5 bg-[#14120F] text-[#FAF7F2] border border-[#2E2822] rounded-xl focus:outline-none focus:border-[#C9A25D]"
-                    />
-                  </div>
-                </div>
-
-                <div>
-                  <label className="block font-medium text-stone-300 mb-1">Primary Image URL</label>
-                  <input
-                    type="url"
-                    value={editingProduct.images?.[0] || ''}
-                    onChange={(e) => {
-                      const newImages = [...(editingProduct.images || [])];
-                      newImages[0] = e.target.value;
-                      setEditingProduct({ ...editingProduct, images: newImages });
-                    }}
-                    placeholder="https://..."
-                    className="w-full p-2.5 bg-[#14120F] text-[#FAF7F2] border border-[#2E2822] rounded-xl focus:outline-none focus:border-[#C9A25D]"
-                  />
-                </div>
-
-                <div>
-                  <label className="block font-medium text-stone-300 mb-1">Editorial Description</label>
-                  <textarea
-                    rows={3}
-                    value={editingProduct.description || ''}
-                    onChange={(e) => setEditingProduct({ ...editingProduct, description: e.target.value })}
-                    className="w-full p-2.5 bg-[#14120F] text-[#FAF7F2] border border-[#2E2822] rounded-xl focus:outline-none focus:border-[#C9A25D]"
-                  />
-                </div>
-
-                <div className="flex gap-4">
-                  <label className="flex items-center gap-2 cursor-pointer text-stone-300">
-                    <input
-                      type="checkbox"
-                      checked={Boolean(editingProduct.isFeatured)}
-                      onChange={(e) => setEditingProduct({ ...editingProduct, isFeatured: e.target.checked })}
-                      className="accent-[#C9A25D]"
-                    />
-                    <span>Featured Piece</span>
-                  </label>
-                  <label className="flex items-center gap-2 cursor-pointer text-stone-300">
-                    <input
-                      type="checkbox"
-                      checked={Boolean(editingProduct.isBestSeller)}
-                      onChange={(e) => setEditingProduct({ ...editingProduct, isBestSeller: e.target.checked })}
-                      className="accent-[#C9A25D]"
-                    />
-                    <span>Best Seller Tag</span>
-                  </label>
-                  <label className="flex items-center gap-2 cursor-pointer text-stone-300">
-                    <input
-                      type="checkbox"
-                      checked={Boolean(editingProduct.isNewArrival)}
-                      onChange={(e) => setEditingProduct({ ...editingProduct, isNewArrival: e.target.checked })}
-                      className="accent-[#C9A25D]"
-                    />
-                    <span>New Arrival Tag</span>
-                  </label>
-                </div>
-
-                {/* Prestige Loyalty Badge Configuration */}
-                <div className="p-4 bg-[#14120F] rounded-2xl border border-[#C9A25D]/40 space-y-3">
-                  <div className="flex items-center justify-between">
-                    <label className="font-serif font-medium text-[#FAF7F2] flex items-center gap-1.5">
-                      <Sparkles className="w-4 h-4 text-[#C9A25D]" />
-                      <span>Loyalty Badge & Prestige Tier</span>
-                    </label>
-                    <span className="text-[10px] uppercase font-sans tracking-wider text-[#E5C378]">
-                      Exclusive & Limited Edition Highlights
-                    </span>
-                  </div>
-
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    <div>
-                      <label className="block text-stone-400 mb-1">Prestige Tier</label>
-                      <select
-                        value={editingProduct.loyaltyBadge?.type || 'none'}
-                        onChange={(e) => {
-                          const val = e.target.value;
-                          if (val === 'none') {
-                            setEditingProduct({
-                              ...editingProduct,
-                              loyaltyBadge: undefined,
-                              isLimitedEdition: false,
-                            });
-                          } else {
-                            setEditingProduct({
-                              ...editingProduct,
-                              isLimitedEdition: val === 'limited_edition',
-                              loyaltyBadge: {
-                                type: val as any,
-                                label: val === 'vault_exclusive' ? 'Vault Exclusive' : val === 'limited_edition' ? 'Limited Edition' : val === 'patron_reserve' ? 'Patron Reserve' : 'Atelier Private',
-                                editionNumber: editingProduct.loyaltyBadge?.editionNumber || (val === 'limited_edition' ? 'Limited to 25 Pieces' : 'Bespoke Master Cast'),
-                                pointsMultiplier: val === 'vault_exclusive' ? 3 : 2,
-                                perkNote: editingProduct.loyaltyBadge?.perkNote || 'Complimentary Insured Courier & Velvet Box',
-                              }
-                            });
-                          }
-                        }}
-                        className="w-full p-2 bg-[#0E0D0B] text-[#FAF7F2] border border-[#2E2822] rounded-xl focus:outline-none focus:border-[#C9A25D] cursor-pointer"
-                      >
-                        <option value="none" className="bg-[#0E0D0B] text-[#FAF7F2]">Standard Catalogue (No Loyalty Badge)</option>
-                        <option value="vault_exclusive" className="bg-[#0E0D0B] text-[#FAF7F2]">Vault Exclusive (High Jewellery Secret)</option>
-                        <option value="limited_edition" className="bg-[#0E0D0B] text-[#FAF7F2]">Limited Edition (Numbered Artisan Release)</option>
-                        <option value="patron_reserve" className="bg-[#0E0D0B] text-[#FAF7F2]">Patron Reserve (VIP Member Allocation)</option>
-                        <option value="atelier_private" className="bg-[#0E0D0B] text-[#FAF7F2]">Atelier Private (Hand-Crafted Lahore Workshop)</option>
-                        <option value="connoisseur" className="bg-[#0E0D0B] text-[#FAF7F2]">Heritage Piece (Certified Heirloom Quality)</option>
-                      </select>
-                    </div>
-
-                    {editingProduct.loyaltyBadge && (
-                      <div>
-                        <label className="block text-stone-400 mb-1">Edition / Serial Note</label>
-                        <input
-                          type="text"
-                          value={editingProduct.loyaltyBadge.editionNumber || ''}
-                          onChange={(e) => setEditingProduct({
-                            ...editingProduct,
-                            loyaltyBadge: {
-                              ...editingProduct.loyaltyBadge!,
-                              editionNumber: e.target.value
-                            }
-                          })}
-                          placeholder="e.g. 1 of 5 Worldwide or Batch No. 04"
-                          className="w-full p-2 bg-[#0E0D0B] text-[#FAF7F2] border border-[#2E2822] rounded-xl focus:outline-none focus:border-[#C9A25D]"
-                        />
-                      </div>
-                    )}
-                  </div>
-                </div>
-
-                <div className="pt-4 border-t border-[#241F1A] flex justify-end gap-3">
-                  <button
-                    type="button"
-                    onClick={() => setIsEditingProduct(false)}
-                    className="px-5 py-2.5 border border-[#2E2822] hover:border-stone-600 rounded-xl font-medium cursor-pointer text-[#FAF7F2]"
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    type="submit"
-                    className="px-6 py-2.5 bg-gradient-to-r from-[#C9A25D] via-[#E5C378] to-[#C9A25D] text-[#0B0A08] hover:brightness-110 rounded-xl font-bold uppercase tracking-wider cursor-pointer shadow-md transition-all"
-                  >
-                    Save to Vault
-                  </button>
-                </div>
-              </form>
-            </div>
-          </div>
+          <ProductForm
+            initial={editingProduct}
+            categories={categories}
+            onSave={handleSaveProduct}
+            onClose={() => {
+              setIsEditingProduct(false);
+              setEditingProduct(null);
+            }}
+          />
         )}
       </div>
     </div>

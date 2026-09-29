@@ -17,9 +17,9 @@ export default defineConfig(() => {
         includeAssets: ['favicon.ico', 'apple-touch-icon.png', 'icon.svg'],
         manifest: {
           id: '/',
-          name: 'AA JEWELERS Luxury Jewellery',
-          short_name: 'AA JEWELERS',
-          description: 'Ultra-premium fine jewellery boutique offering certified diamonds, solid 18K/22K gold, and white-glove Cash on Delivery.',
+          name: 'Aura Adorn Artificial Jewellery',
+          short_name: 'Aura Adorn',
+          description: 'Artificial jewellery with Cash on Delivery all over Pakistan.',
           theme_color: '#1C1815',
           background_color: '#FAF8F5',
           display: 'standalone',
@@ -47,13 +47,14 @@ export default defineConfig(() => {
           ],
         },
         workbox: {
-          globPatterns: ['**/*.{js,css,html,ico,png,svg,woff,woff2}'],
+          globPatterns: ['**/*.{js,css,html,ico,svg,woff,woff2}'],
+          navigateFallbackDenylist: [/^\/\.netlify\//],
           runtimeCaching: [
             {
-              urlPattern: /^https:\/\/images\.unsplash\.com\/.*/i,
+              urlPattern: /^https:\/\/res\.cloudinary\.com\/.*/i,
               handler: 'CacheFirst',
               options: {
-                cacheName: 'unsplash-jewellery-images',
+                cacheName: 'product-images',
                 expiration: {
                   maxEntries: 50,
                   maxAgeSeconds: 60 * 60 * 24 * 30,
@@ -69,7 +70,7 @@ export default defineConfig(() => {
     ],
     resolve: {
       alias: {
-        '@': path.resolve(__dirname, '.'),
+        '@': path.resolve(import.meta.dirname, '.'),
       },
     },
     server: {

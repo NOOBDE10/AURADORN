@@ -1,594 +1,264 @@
-import { 
-  collection, 
-  doc, 
-  getDocs, 
-  getDoc, 
-  setDoc, 
-  updateDoc, 
-  deleteDoc, 
-  query, 
-  where, 
-  orderBy, 
-  serverTimestamp,
-  onSnapshot 
+import {
+  collection,
+  doc,
+  getDocs,
+  getDoc,
+  setDoc,
+  updateDoc,
+  deleteDoc,
+  query,
+  where,
+  orderBy,
+  onSnapshot,
+  arrayUnion,
+  Unsubscribe,
 } from 'firebase/firestore';
-import { db, auth, handleFirestoreError, OperationType } from '../firebase/config';
-import { Product, Category, Order, OrderStatus, Review, StoreSettings, CustomerProfile, NewsletterSubscriber } from '../types';
-import { INITIAL_PRODUCTS, INITIAL_CATEGORIES, INITIAL_SETTINGS, INITIAL_REVIEWS } from '../data/initialData';
+import { db } from '../firebase/config';
+import { Product, Category, Order, OrderStatus, Review, StoreSettings, NewsletterSubscriber } from '../types';
+import { INITIAL_CATEGORIES, INITIAL_SETTINGS } from '../data/initialData';
 
-const LOCAL_PRODUCTS_KEY = 'aura_carat_products';
-const LOCAL_CATEGORIES_KEY = 'aura_carat_categories';
-const LOCAL_SETTINGS_KEY = 'aura_carat_settings';
-const LOCAL_ORDERS_KEY = 'aura_carat_orders';
-const LOCAL_REVIEWS_KEY = 'aura_carat_reviews';
-const LOCAL_SUBSCRIBERS_KEY = 'aura_carat_subscribers';
-
-// Helper to get local data
-function getLocal<T>(key: string, fallback: T): T {
-  try {
-    const raw = localStorage.getItem(key);
-    if (raw) return JSON.parse(raw);
-  } catch (e) {
-    console.error('Failed reading localStorage for', key, e);
-  }
-  return fallback;
-}
-
-function setLocal<T>(key: string, val: T): void {
-  try {
-    localStorage.setItem(key, JSON.stringify(val));
-  } catch (e) {
-    console.error('Failed saving localStorage for', key, e);
-  }
-}
-
-/**
- * Recursively strips keys with `undefined` values so Firestore setDoc/updateDoc
- * never fails with "Unsupported field value: undefined".
- */
+/** Recursively strips `undefined` values, which Firestore rejects. */
 export function sanitizeForFirestore<T>(val: T): T {
-  if (val === null || val === undefined) {
-    return val;
-  }
-  if (Array.isArray(val)) {
-    return val.map(item => sanitizeForFirestore(item)) as unknown as T;
-  }
+  if (val === null || val === undefined) return val;
+  if (Array.isArray(val)) return val.map(item => sanitizeForFirestore(item)) as unknown as T;
   if (typeof val === 'object' && !(val instanceof Date)) {
-    const res: Record<string, any> = {};
+    const res: Record<string, unknown> = {};
     for (const [k, v] of Object.entries(val)) {
-      if (v !== undefined) {
-        res[k] = sanitizeForFirestore(v);
-      }
+      if (v !== undefined) res[k] = sanitizeForFirestore(v);
     }
-    return res as unknown as T;
+    return res as T;
   }
   return val;
 }
 
-// ---------------- PRODUCTS SERVICE ----------------
+// ---------------- ADMIN ----------------
+
+export async function checkIsAdmin(uid: string): Promise<boolean> {
+  try {
+    const snap = await getDoc(doc(db, 'admins', uid));
+    return snap.exists();
+  } catch {
+    return false;
+  }
+}
+
+// ---------------- PRODUCTS ----------------
 
 export async function fetchProducts(): Promise<Product[]> {
-  try {
-    const colRef = collection(db, 'products');
-    const snapshot = await getDocs(colRef);
-    if (!snapshot.empty) {
-      const items: Product[] = [];
-      snapshot.forEach(docSnap => {
-        items.push({ id: docSnap.id, ...docSnap.data() } as Product);
-      });
-      setLocal(LOCAL_PRODUCTS_KEY, items);
-      return items;
-    }
-  } catch (error) {
-    handleFirestoreError(error, OperationType.LIST, 'products');
-  }
-
-  // If Firestore collection is empty or unreachable, return local merged with initial
-  const local = getLocal<Product[]>(LOCAL_PRODUCTS_KEY, INITIAL_PRODUCTS);
-  const existingIds = new Set(local.map(p => p.id));
-  const merged = [...local];
-  for (const initP of INITIAL_PRODUCTS) {
-    if (!existingIds.has(initP.id)) {
-      merged.push(initP);
-    }
-  }
-  return merged;
+  const snapshot = await getDocs(collection(db, 'products'));
+  const items: Product[] = [];
+  snapshot.forEach(docSnap => items.push({ id: docSnap.id, ...docSnap.data() } as Product));
+  items.sort((a, b) => (b.createdAt || '').localeCompare(a.createdAt || ''));
+  return items;
 }
 
 export async function saveProduct(product: Product): Promise<void> {
-  // Update local immediately
-  const existing = getLocal<Product[]>(LOCAL_PRODUCTS_KEY, INITIAL_PRODUCTS);
-  const index = existing.findIndex(p => p.id === product.id);
-  if (index >= 0) {
-    existing[index] = product;
-  } else {
-    existing.unshift(product);
-  }
-  setLocal(LOCAL_PRODUCTS_KEY, existing);
-
-  // Sync to Firestore only when an authenticated session is active
-  if (auth.currentUser) {
-    try {
-      const cleanProd = sanitizeForFirestore({
-        ...product,
-        updatedAt: new Date().toISOString()
-      });
-      await setDoc(doc(db, 'products', product.id), cleanProd);
-    } catch (error) {
-      handleFirestoreError(error, OperationType.WRITE, `products/${product.id}`);
-    }
-  }
+  await setDoc(
+    doc(db, 'products', product.id),
+    sanitizeForFirestore({ ...product, updatedAt: new Date().toISOString() })
+  );
 }
 
 export async function removeProduct(productId: string): Promise<void> {
-  const existing = getLocal<Product[]>(LOCAL_PRODUCTS_KEY, INITIAL_PRODUCTS);
-  const filtered = existing.filter(p => p.id !== productId);
-  setLocal(LOCAL_PRODUCTS_KEY, filtered);
-
-  if (auth.currentUser) {
-    try {
-      await deleteDoc(doc(db, 'products', productId));
-    } catch (error) {
-      handleFirestoreError(error, OperationType.DELETE, `products/${productId}`);
-    }
-  }
+  await deleteDoc(doc(db, 'products', productId));
 }
 
-// ---------------- CATEGORIES SERVICE ----------------
+// ---------------- CATEGORIES ----------------
 
 export async function fetchCategories(): Promise<Category[]> {
-  try {
-    const colRef = collection(db, 'categories');
-    const snapshot = await getDocs(colRef);
-    if (!snapshot.empty) {
-      const items: Category[] = [];
-      snapshot.forEach(docSnap => {
-        items.push({ id: docSnap.id, ...docSnap.data() } as Category);
-      });
-      setLocal(LOCAL_CATEGORIES_KEY, items);
-      return items;
-    }
-  } catch (error) {
-    handleFirestoreError(error, OperationType.LIST, 'categories');
-  }
-  return getLocal<Category[]>(LOCAL_CATEGORIES_KEY, INITIAL_CATEGORIES);
+  const snapshot = await getDocs(collection(db, 'categories'));
+  if (snapshot.empty) return INITIAL_CATEGORIES;
+  const items: Category[] = [];
+  snapshot.forEach(docSnap => items.push({ id: docSnap.id, ...docSnap.data() } as Category));
+  items.sort((a, b) => (a.order ?? 999) - (b.order ?? 999) || a.name.localeCompare(b.name));
+  return items;
 }
 
 export async function saveCategory(category: Category): Promise<void> {
-  const existing = getLocal<Category[]>(LOCAL_CATEGORIES_KEY, INITIAL_CATEGORIES);
-  const index = existing.findIndex(c => c.id === category.id);
-  if (index >= 0) {
-    existing[index] = category;
-  } else {
-    existing.push(category);
-  }
-  setLocal(LOCAL_CATEGORIES_KEY, existing);
-
-  if (auth.currentUser) {
-    try {
-      const cleanCat = sanitizeForFirestore(category);
-      await setDoc(doc(db, 'categories', category.id), cleanCat);
-    } catch (error) {
-      handleFirestoreError(error, OperationType.WRITE, `categories/${category.id}`);
-    }
-  }
+  await setDoc(doc(db, 'categories', category.id), sanitizeForFirestore(category));
 }
 
 export async function removeCategory(categoryId: string): Promise<void> {
-  const existing = getLocal<Category[]>(LOCAL_CATEGORIES_KEY, INITIAL_CATEGORIES);
-  setLocal(LOCAL_CATEGORIES_KEY, existing.filter(c => c.id !== categoryId));
-
-  if (auth.currentUser) {
-    try {
-      await deleteDoc(doc(db, 'categories', categoryId));
-    } catch (error) {
-      handleFirestoreError(error, OperationType.DELETE, `categories/${categoryId}`);
-    }
-  }
+  await deleteDoc(doc(db, 'categories', categoryId));
 }
 
-// ---------------- ORDERS SERVICE ----------------
-
-export function generateOrderId(): string {
-  const timestamp = Date.now().toString().slice(-4);
-  const random = Math.floor(1000 + Math.random() * 9000);
-  return `AC-2026-${timestamp}${random}`;
-}
-
-export interface OrderNotificationPayload {
-  orderId: string;
-  customerName: string;
-  phone: string;
-  email: string;
-  address: string;
-  totalAmount: number;
-  items: Array<{ name: string; quantity: number; price: number }>;
-  storeOwnerEmail: string;
-}
-
-export async function placeOrder(orderData: Omit<Order, 'id' | 'createdAt' | 'status' | 'trackingUpdates'>): Promise<Order> {
-  const orderId = generateOrderId();
-  const now = new Date().toISOString();
-
-  const newOrder: Order = {
-    ...orderData,
-    id: orderId,
-    status: 'pending',
-    createdAt: now,
-    trackingUpdates: [
-      {
-        status: 'pending',
-        title: 'Order Placed (Cash on Delivery)',
-        description: 'Your bespoke jewellery order has been received and logged into our boutique dispatch queue.',
-        timestamp: now,
-        completed: true
-      }
-    ]
-  };
-
-  // If customerId is undefined or empty, delete the key so Firestore never receives undefined
-  if (!newOrder.customerId) {
-    delete (newOrder as any).customerId;
-  }
-
-  // Save to local cache first
-  const existingOrders = getLocal<Order[]>(LOCAL_ORDERS_KEY, []);
-  existingOrders.unshift(newOrder);
-  setLocal(LOCAL_ORDERS_KEY, existingOrders);
-
-  // Save immediately to Firestore
-  try {
-    const cleanPayload = sanitizeForFirestore(newOrder);
-    await setDoc(doc(db, 'orders', orderId), cleanPayload);
-  } catch (error) {
-    handleFirestoreError(error, OperationType.CREATE, `orders/${orderId}`);
-  }
-
-  // Deduct stock for purchased items in local cache
-  try {
-    const products = getLocal<Product[]>(LOCAL_PRODUCTS_KEY, INITIAL_PRODUCTS);
-    let stockModified = false;
-    for (const item of newOrder.items) {
-      const prod = products.find(p => p.id === item.productId);
-      if (prod) {
-        prod.stock = Math.max(0, prod.stock - item.quantity);
-        if (prod.stock === 0) prod.status = 'out_of_stock';
-        stockModified = true;
-      }
-    }
-    if (stockModified) {
-      setLocal(LOCAL_PRODUCTS_KEY, products);
-    }
-  } catch (e) {
-    console.warn('Stock update warning:', e);
-  }
-
-  // Trigger Admin Notification (Store Owner: auraadornjewellers@gmail.com)
-  sendOwnerOrderNotification({
-    orderId,
-    customerName: newOrder.customerName,
-    phone: newOrder.phone,
-    email: newOrder.email,
-    address: `${newOrder.address}, ${newOrder.area}, ${newOrder.city} ${newOrder.postalCode || ''}`,
-    totalAmount: newOrder.totalAmount,
-    items: newOrder.items.map(i => ({ name: i.productName, quantity: i.quantity, price: i.price })),
-    storeOwnerEmail: 'auraadornjewellers@gmail.com'
-  });
-
-  return newOrder;
-}
-
-export async function fetchAllOrders(isAdmin = false): Promise<Order[]> {
-  // Only attempt Firestore remote collection list when the user is signed in to Firebase Auth with admin privileges
-  if (isAdmin && auth.currentUser) {
-    try {
-      const colRef = collection(db, 'orders');
-      const snapshot = await getDocs(colRef);
-      if (!snapshot.empty) {
-        const orders: Order[] = [];
-        snapshot.forEach(docSnap => {
-          orders.push({ id: docSnap.id, ...docSnap.data() } as Order);
-        });
-        // Sort newest first
-        orders.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
-        setLocal(LOCAL_ORDERS_KEY, orders);
-        return orders;
-      }
-    } catch (error) {
-      handleFirestoreError(error, OperationType.LIST, 'orders');
-    }
-  }
-  return getLocal<Order[]>(LOCAL_ORDERS_KEY, []);
-}
-
-export async function fetchOrderById(orderId: string): Promise<Order | null> {
-  const cleanId = orderId.trim();
-  if (!cleanId) return null;
-
-  // Check local cache first
-  const localOrders = getLocal<Order[]>(LOCAL_ORDERS_KEY, []);
-  const found = localOrders.find(o => o.id.toUpperCase() === cleanId.toUpperCase());
-  if (found) return found;
-
-  // Fetch individual document from Firestore
-  try {
-    const snap = await getDoc(doc(db, 'orders', cleanId));
-    if (snap.exists()) {
-      return { id: snap.id, ...snap.data() } as Order;
-    }
-  } catch (error) {
-    handleFirestoreError(error, OperationType.GET, `orders/${cleanId}`);
-  }
-  return null;
-}
-
-export async function updateOrderStatus(orderId: string, newStatus: OrderStatus): Promise<void> {
-  const existingOrders = getLocal<Order[]>(LOCAL_ORDERS_KEY, []);
-  const order = existingOrders.find(o => o.id === orderId);
-
-  const statusDescriptions: Record<OrderStatus, { title: string; desc: string }> = {
-    pending: { title: 'Order Received', desc: 'Order is awaiting boutique confirmation.' },
-    confirmed: { title: 'Order Confirmed', desc: 'Jewellery pieces allocated from vault and certified.' },
-    processing: { title: 'Hand-Polishing & Packaging', desc: 'Inspecting carats and packing in luxury velvet presentation chest.' },
-    shipped: { title: 'Handed to Armed / Insured Courier', desc: 'Package dispatched for safe white-glove transit.' },
-    delivered: { title: 'Delivered & Payment Received', desc: 'Cash on delivery collected and signed by recipient.' },
-    cancelled: { title: 'Order Cancelled', desc: 'This order was cancelled.' }
-  };
-
-  const now = new Date().toISOString();
-
-  if (order) {
-    order.status = newStatus;
-    order.updatedAt = now;
-    if (!order.trackingUpdates) order.trackingUpdates = [];
-    order.trackingUpdates.push({
-      status: newStatus,
-      title: statusDescriptions[newStatus].title,
-      description: statusDescriptions[newStatus].desc,
-      timestamp: now,
-      completed: true
-    });
-    setLocal(LOCAL_ORDERS_KEY, existingOrders);
-  }
-
-  if (auth.currentUser) {
-    try {
-      const cleanUpdate = sanitizeForFirestore({
-        status: newStatus,
-        updatedAt: now,
-        trackingUpdates: order?.trackingUpdates || []
-      });
-      await updateDoc(doc(db, 'orders', orderId), cleanUpdate);
-    } catch (error) {
-      handleFirestoreError(error, OperationType.UPDATE, `orders/${orderId}`);
-    }
-  }
-}
-
-// ---------------- STORE SETTINGS SERVICE ----------------
+// ---------------- SETTINGS ----------------
 
 export async function fetchStoreSettings(): Promise<StoreSettings> {
-  try {
-    const docRef = doc(db, 'settings', 'general');
-    const snapshot = await getDoc(docRef);
-    if (snapshot.exists()) {
-      const data = snapshot.data() as StoreSettings;
-      const normalized: StoreSettings = {
-        ...INITIAL_SETTINGS,
-        ...data,
-        brandName: 'AA JEWELERS',
-        email: data.email || 'auraadornjewellers@gmail.com',
-        phone: data.phone || '+92 333 8282369',
-        whatsappNumber: data.whatsappNumber || '+923338282369',
-        announcementText: data.announcementText?.includes('LUXE10') 
-          ? INITIAL_SETTINGS.announcementText 
-          : (data.announcementText || INITIAL_SETTINGS.announcementText)
-      };
-      setLocal(LOCAL_SETTINGS_KEY, normalized);
-      return normalized;
-    }
-  } catch (error) {
-    handleFirestoreError(error, OperationType.GET, 'settings/general');
-  }
-  const cached = getLocal<StoreSettings>(LOCAL_SETTINGS_KEY, INITIAL_SETTINGS);
+  const snapshot = await getDoc(doc(db, 'settings', 'general'));
+  if (!snapshot.exists()) return INITIAL_SETTINGS;
+  const data = snapshot.data() as Partial<StoreSettings>;
   return {
     ...INITIAL_SETTINGS,
-    ...cached,
-    brandName: 'AA JEWELERS',
-    email: cached.email || 'auraadornjewellers@gmail.com',
-    phone: cached.phone || '+92 333 8282369',
-    whatsappNumber: cached.whatsappNumber || '+923338282369',
-    announcementText: cached.announcementText?.includes('LUXE10') 
-      ? INITIAL_SETTINGS.announcementText 
-      : (cached.announcementText || INITIAL_SETTINGS.announcementText)
+    ...data,
+    heroBanner: { ...INITIAL_SETTINGS.heroBanner, ...(data.heroBanner || {}) },
   };
 }
 
 export async function saveStoreSettings(settings: StoreSettings): Promise<void> {
-  setLocal(LOCAL_SETTINGS_KEY, settings);
-  if (auth.currentUser) {
-    try {
-      const cleanSettings = sanitizeForFirestore(settings);
-      await setDoc(doc(db, 'settings', 'general'), cleanSettings);
-    } catch (error) {
-      handleFirestoreError(error, OperationType.WRITE, 'settings/general');
-    }
-  }
+  await setDoc(doc(db, 'settings', 'general'), sanitizeForFirestore(settings));
 }
 
-// ---------------- REVIEWS SERVICE ----------------
+// ---------------- ORDERS ----------------
 
-export async function fetchReviews(): Promise<Review[]> {
-  try {
-    const colRef = collection(db, 'reviews');
-    const snapshot = await getDocs(colRef);
-    if (!snapshot.empty) {
-      const revs: Review[] = [];
-      snapshot.forEach(d => revs.push({ id: d.id, ...d.data() } as Review));
-      setLocal(LOCAL_REVIEWS_KEY, revs);
-      return revs;
-    }
-  } catch (error) {
-    handleFirestoreError(error, OperationType.LIST, 'reviews');
-  }
-  return getLocal<Review[]>(LOCAL_REVIEWS_KEY, INITIAL_REVIEWS);
+export interface PlaceOrderRequest {
+  customerName: string;
+  phone: string;
+  email?: string;
+  address: string;
+  city: string;
+  area?: string;
+  postalCode?: string;
+  notes?: string;
+  items: Array<{ productId: string; quantity: number; option?: string }>;
 }
 
-export async function addReview(review: Omit<Review, 'id' | 'createdAt' | 'status'>): Promise<Review> {
-  const newRev: Review = {
-    ...review,
-    id: `rev-${Date.now()}`,
-    status: 'approved', // auto-approved for instant satisfaction, admin can moderate
-    createdAt: new Date().toISOString()
-  };
-
-  const existing = getLocal<Review[]>(LOCAL_REVIEWS_KEY, INITIAL_REVIEWS);
-  existing.unshift(newRev);
-  setLocal(LOCAL_REVIEWS_KEY, existing);
-
+async function callFunction<T>(name: string, body: unknown): Promise<T> {
+  let res: Response;
   try {
-    const cleanReview = sanitizeForFirestore(newRev);
-    await setDoc(doc(db, 'reviews', newRev.id), cleanReview);
-  } catch (error) {
-    handleFirestoreError(error, OperationType.CREATE, `reviews/${newRev.id}`);
+    res = await fetch(`/.netlify/functions/${name}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    });
+  } catch {
+    throw new Error('Network error. Please check your internet connection and try again.');
   }
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) {
+    throw new Error(data.error || 'Something went wrong. Please try again or contact us on WhatsApp.');
+  }
+  return data as T;
+}
 
-  return newRev;
+/** Order is validated, priced and saved on the server (netlify/functions/place-order). */
+export async function placeOrder(request: PlaceOrderRequest): Promise<Order> {
+  const { order } = await callFunction<{ order: Order }>('place-order', request);
+  return order;
+}
+
+/** Customer order lookup: needs both the order ID and the phone number used at checkout. */
+export async function trackOrder(orderId: string, phone: string): Promise<Order | null> {
+  const { order } = await callFunction<{ order: Order | null }>('track-order', { orderId, phone });
+  return order;
+}
+
+/** Admin only: live list of all orders, newest first. */
+export function subscribeToOrders(onChange: (orders: Order[]) => void, onError: (e: Error) => void): Unsubscribe {
+  return onSnapshot(
+    query(collection(db, 'orders'), orderBy('createdAt', 'desc')),
+    snapshot => {
+      const orders: Order[] = [];
+      snapshot.forEach(d => orders.push({ id: d.id, ...d.data() } as Order));
+      onChange(orders);
+    },
+    onError
+  );
+}
+
+const STATUS_TEXT: Record<OrderStatus, { title: string; desc: string }> = {
+  pending: { title: 'Order Received', desc: 'We have received your order.' },
+  confirmed: { title: 'Order Confirmed', desc: 'Your order has been confirmed.' },
+  processing: { title: 'Packed', desc: 'Your jewellery has been packed.' },
+  shipped: { title: 'Handed to Courier', desc: 'Your parcel is on its way.' },
+  delivered: { title: 'Delivered', desc: 'Delivered and cash collected.' },
+  cancelled: { title: 'Order Cancelled', desc: 'This order was cancelled.' },
+};
+
+export async function updateOrder(
+  orderId: string,
+  changes: { status?: OrderStatus; trackingNumber?: string; courierName?: string }
+): Promise<void> {
+  const now = new Date().toISOString();
+  const update: Record<string, unknown> = { updatedAt: now };
+  if (changes.trackingNumber !== undefined) update.trackingNumber = changes.trackingNumber;
+  if (changes.courierName !== undefined) update.courierName = changes.courierName;
+  if (changes.status) {
+    update.status = changes.status;
+    update.trackingUpdates = arrayUnion({
+      status: changes.status,
+      title: STATUS_TEXT[changes.status].title,
+      description: STATUS_TEXT[changes.status].desc,
+      timestamp: now,
+      completed: true,
+    });
+  }
+  await updateDoc(doc(db, 'orders', orderId), update);
+}
+
+// ---------------- REVIEWS ----------------
+
+export async function fetchApprovedReviews(): Promise<Review[]> {
+  const snapshot = await getDocs(query(collection(db, 'reviews'), where('status', '==', 'approved')));
+  const revs: Review[] = [];
+  snapshot.forEach(d => revs.push({ id: d.id, ...d.data() } as Review));
+  return revs;
+}
+
+export async function fetchAllReviews(): Promise<Review[]> {
+  const snapshot = await getDocs(collection(db, 'reviews'));
+  const revs: Review[] = [];
+  snapshot.forEach(d => revs.push({ id: d.id, ...d.data() } as Review));
+  revs.sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+  return revs;
+}
+
+/** Reviews are saved as pending and only appear after the admin approves them. */
+export async function addReview(review: Omit<Review, 'id' | 'createdAt' | 'status' | 'verifiedPurchase'>): Promise<void> {
+  const id = `rev-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+  await setDoc(
+    doc(db, 'reviews', id),
+    sanitizeForFirestore({
+      ...review,
+      id,
+      status: 'pending',
+      verifiedPurchase: false,
+      createdAt: new Date().toISOString(),
+    })
+  );
 }
 
 export async function updateReviewStatus(reviewId: string, status: 'approved' | 'pending'): Promise<void> {
-  const existing = getLocal<Review[]>(LOCAL_REVIEWS_KEY, INITIAL_REVIEWS);
-  const rev = existing.find(r => r.id === reviewId);
-  if (rev) rev.status = status;
-  setLocal(LOCAL_REVIEWS_KEY, existing);
-
-  if (auth.currentUser) {
-    try {
-      await updateDoc(doc(db, 'reviews', reviewId), { status });
-    } catch (error) {
-      handleFirestoreError(error, OperationType.UPDATE, `reviews/${reviewId}`);
-    }
-  }
+  await updateDoc(doc(db, 'reviews', reviewId), { status });
 }
 
 export async function deleteReview(reviewId: string): Promise<void> {
-  const existing = getLocal<Review[]>(LOCAL_REVIEWS_KEY, INITIAL_REVIEWS);
-  setLocal(LOCAL_REVIEWS_KEY, existing.filter(r => r.id !== reviewId));
-
-  if (auth.currentUser) {
-    try {
-      await deleteDoc(doc(db, 'reviews', reviewId));
-    } catch (error) {
-      handleFirestoreError(error, OperationType.DELETE, `reviews/${reviewId}`);
-    }
-  }
+  await deleteDoc(doc(db, 'reviews', reviewId));
 }
 
-// ---------------- ADMIN ORDER NOTIFICATION DISPATCH ----------------
-
-export function sendOwnerOrderNotification(payload: OrderNotificationPayload) {
-  console.info('🔔 [Aura & Carat Admin Notification Dispatch]');
-  console.info(`Target Owner: ${payload.storeOwnerEmail}`);
-  console.info(`Order ID: ${payload.orderId} | Value: $${payload.totalAmount}`);
-  console.info(`Customer: ${payload.customerName} (${payload.phone} - ${payload.email})`);
-  console.info(`Shipping: ${payload.address}`);
-  console.info(`Items:`, payload.items);
-
-  // Store in notifications history for immediate Admin Panel banner & badge display
-  try {
-    const notifs = getLocal<OrderNotificationPayload[]>('aura_carat_admin_notifications', []);
-    notifs.unshift(payload);
-    setLocal('aura_carat_admin_notifications', notifs.slice(0, 50));
-  } catch (e) {
-    console.error(e);
-  }
-}
-
-// ---------------- NEWSLETTER SUBSCRIBERS SERVICE ----------------
+// ---------------- NEWSLETTER ----------------
 
 export async function subscribeNewsletter(
-  email: string, 
+  email: string,
   source: string = 'footer_newsletter'
 ): Promise<{ success: boolean; message: string; alreadySubscribed?: boolean }> {
   const cleanEmail = email.trim().toLowerCase();
-  
-  // Basic email validation regex
-  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-  if (!emailRegex.test(cleanEmail)) {
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(cleanEmail)) {
     return { success: false, message: 'Please provide a valid email address.' };
   }
-
-  // Check local subscribers cache
-  const localSubscribers = getLocal<NewsletterSubscriber[]>(LOCAL_SUBSCRIBERS_KEY, []);
-  const existing = localSubscribers.find(s => s.email.toLowerCase() === cleanEmail);
-  if (existing) {
-    return { 
-      success: true, 
-      message: 'You are already on our private launch invitation list.', 
-      alreadySubscribed: true 
-    };
-  }
-
-  // Safe Firestore document ID
-  const sanitizedId = `sub_${cleanEmail.replace(/[^a-z0-9]/g, '_')}`;
-  const newSubscriber: NewsletterSubscriber = {
-    id: sanitizedId,
-    email: cleanEmail,
-    subscribedAt: new Date().toISOString(),
-    source,
-    active: true
-  };
-
-  // Save to local cache immediately
-  localSubscribers.unshift(newSubscriber);
-  setLocal(LOCAL_SUBSCRIBERS_KEY, localSubscribers);
-
-  // Sync to Firestore
+  const id = `sub_${cleanEmail.replace(/[^a-z0-9]/g, '_')}`.slice(0, 128);
   try {
-    const cleanSubscriber = sanitizeForFirestore(newSubscriber);
-    await setDoc(doc(db, 'subscribers', sanitizedId), cleanSubscriber);
-  } catch (error) {
-    // If offline or permission issue, handle gracefully
-    console.warn('Firestore subscription sync notice:', error);
+    await setDoc(doc(db, 'subscribers', id), {
+      id,
+      email: cleanEmail,
+      subscribedAt: new Date().toISOString(),
+      source,
+      active: true,
+    });
+  } catch {
+    // Create-only rule: an existing subscriber cannot be overwritten.
+    return { success: true, message: 'You are already subscribed.', alreadySubscribed: true };
   }
-
-  return {
-    success: true,
-    message: 'Welcome to the AA JEWELERS Private Salon. You are registered for upcoming product launch previews.'
-  };
+  return { success: true, message: 'Thank you for subscribing! We will share new arrivals and offers with you.' };
 }
 
-export async function fetchSubscribers(isAdmin = false): Promise<NewsletterSubscriber[]> {
-  if (isAdmin && auth.currentUser) {
-    try {
-      const colRef = collection(db, 'subscribers');
-      const snapshot = await getDocs(colRef);
-      if (!snapshot.empty) {
-        const items: NewsletterSubscriber[] = [];
-        snapshot.forEach(docSnap => {
-          items.push({ id: docSnap.id, ...docSnap.data() } as NewsletterSubscriber);
-        });
-        setLocal(LOCAL_SUBSCRIBERS_KEY, items);
-        return items;
-      }
-    } catch (error) {
-      // In unauthenticated mode, gracefully use local
-      console.warn('Subscriber list retrieval note:', error);
-    }
-  }
-  return getLocal<NewsletterSubscriber[]>(LOCAL_SUBSCRIBERS_KEY, []);
+export async function fetchSubscribers(): Promise<NewsletterSubscriber[]> {
+  const snapshot = await getDocs(collection(db, 'subscribers'));
+  const items: NewsletterSubscriber[] = [];
+  snapshot.forEach(docSnap => items.push({ id: docSnap.id, ...docSnap.data() } as NewsletterSubscriber));
+  return items;
 }
 
 export async function deleteSubscriber(id: string): Promise<void> {
-  const existing = getLocal<NewsletterSubscriber[]>(LOCAL_SUBSCRIBERS_KEY, []);
-  setLocal(LOCAL_SUBSCRIBERS_KEY, existing.filter(s => s.id !== id));
-
-  if (auth.currentUser) {
-    try {
-      await deleteDoc(doc(db, 'subscribers', id));
-    } catch (error) {
-      handleFirestoreError(error, OperationType.DELETE, `subscribers/${id}`);
-    }
-  }
+  await deleteDoc(doc(db, 'subscribers', id));
 }
-

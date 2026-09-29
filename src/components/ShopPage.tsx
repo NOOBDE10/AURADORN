@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useStore } from '../context/StoreContext';
+import { formatPrice } from '../lib/format';
 import { ProductCard } from './ProductCard';
 import { ProductCardSkeleton } from './SkeletonLoader';
 import { 
@@ -41,7 +42,11 @@ export const ShopPage: React.FC<ShopPageProps> = ({
   const [searchQuery, setSearchQuery] = useState(externalSearchQuery || '');
   const [selectedMetal, setSelectedMetal] = useState<string>('all');
   const [selectedStone, setSelectedStone] = useState<string>('all');
-  const [maxPrice, setMaxPrice] = useState<number>(7000);
+  const [maxPrice, setMaxPrice] = useState<number>(0); // 0 = no price limit
+  const priceCeiling = useMemo(
+    () => Math.max(1000, Math.ceil(Math.max(0, ...products.map(p => p.price)) / 500) * 500),
+    [products]
+  );
   const [onlyInStock, setOnlyInStock] = useState<boolean>(false);
   const [sortBy, setSortBy] = useState<'featured' | 'price-low' | 'price-high' | 'newest' | 'rating' | 'discount'>('featured');
   const [isFilterOpen, setIsFilterOpen] = useState(false);
@@ -61,8 +66,11 @@ export const ShopPage: React.FC<ShopPageProps> = ({
   };
 
   // Available metals and stones for filtering
-  const metals = ['all', '18K Yellow Gold', '18K White Gold', '18K Rose Gold', '22K Yellow Gold', 'Platinum', 'Stainless Steel'];
-  const stones = ['all', 'Diamond', 'Emerald', 'Ruby', 'Sapphire', 'Pearl'];
+  // Filter choices come from the products the admin has entered.
+  const uniqueValues = (values: (string | undefined)[]) =>
+    ['all', ...Array.from(new Set(values.map(v => (v || '').trim()).filter(Boolean))).sort()];
+  const metals = useMemo(() => uniqueValues(products.map(p => p.details?.metal)), [products]);
+  const stones = useMemo(() => uniqueValues(products.map(p => p.details?.stone)), [products]);
 
   // Filter and sort products
   const filteredProducts = useMemo(() => {
@@ -97,16 +105,16 @@ export const ShopPage: React.FC<ShopPageProps> = ({
 
     // Filter by Metal
     if (selectedMetal !== 'all') {
-      list = list.filter(p => p.details.metal.toLowerCase().includes(selectedMetal.toLowerCase()));
+      list = list.filter(p => (p.details?.metal || '') === selectedMetal);
     }
 
     // Filter by Stone
     if (selectedStone !== 'all') {
-      list = list.filter(p => p.details.stone && p.details.stone.toLowerCase().includes(selectedStone.toLowerCase()));
+      list = list.filter(p => (p.details?.stone || '') === selectedStone);
     }
 
     // Filter by Price
-    list = list.filter(p => p.price <= maxPrice);
+    if (maxPrice > 0) list = list.filter(p => p.price <= maxPrice);
 
     // Filter by Stock
     if (onlyInStock) {
@@ -143,7 +151,7 @@ export const ShopPage: React.FC<ShopPageProps> = ({
     selectedCategory !== 'all' || 
     selectedMetal !== 'all' || 
     selectedStone !== 'all' || 
-    maxPrice < 7000 || 
+    maxPrice > 0 || 
     onlyInStock || 
     searchQuery.trim() !== '';
 
@@ -151,7 +159,7 @@ export const ShopPage: React.FC<ShopPageProps> = ({
     onSelectCategory('all');
     setSelectedMetal('all');
     setSelectedStone('all');
-    setMaxPrice(7000);
+    setMaxPrice(0);
     setOnlyInStock(false);
     setSearchQuery('');
   };
@@ -185,14 +193,14 @@ export const ShopPage: React.FC<ShopPageProps> = ({
             <div>
               <div className="flex items-center gap-2 text-[#E5C378] text-xs font-sans uppercase tracking-[0.25em] font-semibold mb-2">
                 <Sparkles className="w-3.5 h-3.5" />
-                <span>Maison Haute Joaillerie</span>
+                <span>Artificial Jewellery</span>
               </div>
               <h1 className="font-serif text-3xl sm:text-5xl font-normal tracking-tight text-[#FAF7F2]">
-                AA JEWELERS Boutique
+                Shop All
               </h1>
               <p className="mt-2 text-xs sm:text-sm text-[#A89F91] max-w-2xl font-sans leading-relaxed">
-                Discover mastercrafted fine jewellery in pure 18K and 22K gold, conflict-free solitaire diamonds, and hand-selected vibrant gemstones.
-              </p>
+                Necklace sets, earrings, bangles, rings and bridal jewellery, all with Cash on Delivery all over Pakistan.
+</p>
             </div>
 
             {/* Quick Stats Pill */}
@@ -204,7 +212,7 @@ export const ShopPage: React.FC<ShopPageProps> = ({
               <div className="h-8 w-px bg-white/10" />
               <div>
                 <span className="block font-serif text-lg text-[#FAF7F2] font-semibold">100%</span>
-                <span className="text-[#A89F91] text-[10px] tracking-widest uppercase">Hallmarked</span>
+                <span className="text-[#A89F91] text-[10px] tracking-widest uppercase">Cash on Delivery</span>
               </div>
             </div>
           </div>
@@ -255,18 +263,7 @@ export const ShopPage: React.FC<ShopPageProps> = ({
                 : 'bg-[#14120F] text-[#E5C378] border border-[#C9A25D]/40 hover:border-[#C9A25D]'
             }`}
           >
-            <span>⚡ Vault Deals & Offers</span>
-          </button>
-          <button
-            onClick={() => onSelectCategory('exclusives')}
-            className={`px-4 py-2 rounded-full text-xs font-sans font-medium tracking-wider uppercase whitespace-nowrap transition-all cursor-pointer flex items-center gap-1.5 ${
-              selectedCategory === 'exclusives'
-                ? 'bg-gradient-to-r from-[#C9A25D] via-[#E5C378] to-[#C9A25D] text-[#0B0A08] font-bold shadow-md border border-[#E5C378]'
-                : 'bg-[#14120F] text-[#E6D4AF] border border-[#C9A25D]/40 hover:border-[#C9A25D]'
-            }`}
-          >
-            <Crown className="w-3.5 h-3.5 text-[#E5C378]" />
-            <span>Vault & Limited Editions</span>
+            <span>Sale</span>
           </button>
         </div>
 
@@ -391,7 +388,7 @@ export const ShopPage: React.FC<ShopPageProps> = ({
               {/* Gemstone Selection */}
               <div>
                 <label className="block text-xs font-sans uppercase tracking-widest text-[#E5C378] font-semibold mb-2">
-                  Gemstone & Solitaire
+                  Stones
                 </label>
                 <select
                   value={selectedStone}
@@ -409,20 +406,20 @@ export const ShopPage: React.FC<ShopPageProps> = ({
               <div>
                 <div className="flex items-center justify-between text-xs font-sans uppercase tracking-widest text-[#E5C378] font-semibold mb-2">
                   <span>Price Range</span>
-                  <span className="text-[#E5C378] font-serif font-bold">${maxPrice.toLocaleString()}</span>
+                  <span className="text-[#E5C378] font-serif font-bold">{maxPrice > 0 ? formatPrice(maxPrice) : 'Any'}</span>
                 </div>
                 <input
                   type="range"
-                  min="200"
-                  max="7000"
+                  min="0"
+                  max={priceCeiling}
                   step="100"
-                  value={maxPrice}
-                  onChange={(e) => setMaxPrice(Number(e.target.value))}
+                  value={maxPrice || priceCeiling}
+                  onChange={(e) => { const v = Number(e.target.value); setMaxPrice(v >= priceCeiling ? 0 : v); }}
                   className="w-full accent-[#C9A25D] cursor-pointer"
                 />
                 <div className="flex justify-between text-[10px] text-stone-500 font-sans mt-1">
-                  <span>$200</span>
-                  <span>$7,000+</span>
+                  <span>Rs 0</span>
+                  <span>{formatPrice(priceCeiling)}</span>
                 </div>
               </div>
 
@@ -436,7 +433,7 @@ export const ShopPage: React.FC<ShopPageProps> = ({
                     className="rounded accent-[#C9A25D] w-4 h-4"
                   />
                   <span className="text-xs font-sans text-[#FAF7F2] font-medium">
-                    Vault Ready (In-Stock Only)
+                    In stock only
                   </span>
                 </label>
               </div>
@@ -521,15 +518,15 @@ export const ShopPage: React.FC<ShopPageProps> = ({
           </div>
         )}
 
-        {/* Maison Trust Pillars */}
+        {/* Trust Pillars */}
         <div className="mt-20 pt-12 border-t border-[#241F1A] grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
           <div className="flex items-start gap-3 bg-[#14120F] p-5 rounded-2xl border border-[#26211B] hover:border-[#C9A25D]/40 transition-colors">
             <div className="w-10 h-10 rounded-full bg-[#1A1714] border border-[#C9A25D]/30 flex items-center justify-center shrink-0">
               <Award className="w-5 h-5 text-[#E5C378]" />
             </div>
             <div>
-              <h4 className="font-serif text-sm font-semibold text-[#FAF7F2]">100% Solid Gold</h4>
-              <p className="text-[11px] font-sans text-[#A89F91] mt-0.5">Assay certified 18K & 22K hallmarked purity.</p>
+              <h4 className="font-serif text-sm font-semibold text-[#FAF7F2]">Quality Finish</h4>
+              <p className="text-[11px] font-sans text-[#A89F91] mt-0.5">Every piece is checked before it is packed.</p>
             </div>
           </div>
 
@@ -538,8 +535,8 @@ export const ShopPage: React.FC<ShopPageProps> = ({
               <ShieldCheck className="w-5 h-5 text-[#E5C378]" />
             </div>
             <div>
-              <h4 className="font-serif text-sm font-semibold text-[#FAF7F2]">Certified Diamonds</h4>
-              <p className="text-[11px] font-sans text-[#A89F91] mt-0.5">GIA & IGI verified natural brilliant solitaires.</p>
+              <h4 className="font-serif text-sm font-semibold text-[#FAF7F2]">Honest Descriptions</h4>
+              <p className="text-[11px] font-sans text-[#A89F91] mt-0.5">All our jewellery is artificial (imitation) jewellery.</p>
             </div>
           </div>
 
@@ -548,8 +545,8 @@ export const ShopPage: React.FC<ShopPageProps> = ({
               <Truck className="w-5 h-5 text-[#E5C378]" />
             </div>
             <div>
-              <h4 className="font-serif text-sm font-semibold text-[#FAF7F2]">Insured Transit</h4>
-              <p className="text-[11px] font-sans text-[#A89F91] mt-0.5">White-glove courier with signature security.</p>
+              <h4 className="font-serif text-sm font-semibold text-[#FAF7F2]">Cash on Delivery</h4>
+              <p className="text-[11px] font-sans text-[#A89F91] mt-0.5">Pay the courier when your parcel arrives.</p>
             </div>
           </div>
 
@@ -558,8 +555,8 @@ export const ShopPage: React.FC<ShopPageProps> = ({
               <RotateCcw className="w-5 h-5 text-[#E5C378]" />
             </div>
             <div>
-              <h4 className="font-serif text-sm font-semibold text-[#FAF7F2]">30-Day Guarantee</h4>
-              <p className="text-[11px] font-sans text-[#A89F91] mt-0.5">Complimentary sizing & exchange privilege.</p>
+              <h4 className="font-serif text-sm font-semibold text-[#FAF7F2]">Easy Exchange</h4>
+              <p className="text-[11px] font-sans text-[#A89F91] mt-0.5">Damaged or wrong item? We will exchange it.</p>
             </div>
           </div>
         </div>

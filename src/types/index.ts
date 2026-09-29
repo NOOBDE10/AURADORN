@@ -1,14 +1,12 @@
 export type ProductStatus = 'active' | 'draft' | 'out_of_stock';
 
 export interface ProductDetails {
-  metal: string; // e.g. "18K Yellow Gold", "Platinum 950", "Rose Gold"
-  karat?: string;
-  weight?: string; // e.g. "4.85 grams"
-  stone?: string; // e.g. "VVS1 Natural Diamond", "Ceylon Sapphire"
-  gemstoneWeight?: string; // e.g. "1.20 Carat"
-  certification?: string; // e.g. "GIA Certified", "IGI Certified"
+  metal: string; // Material & finish, e.g. "Gold-plated brass", "Oxidised silver-tone alloy"
+  stone?: string; // e.g. "Kundan & pearls", "AD / cubic zirconia"
+  color?: string;
+  weight?: string;
   dimensions?: string;
-  purity?: string;
+  includes?: string; // e.g. "Necklace + earrings + tikka"
 }
 
 export interface Product {
@@ -36,6 +34,9 @@ export interface Product {
   };
   isLimitedEdition?: boolean;
   limitedPiecesCount?: number;
+  /** Size / colour choices shown to the customer, e.g. ["2.4", "2.6", "2.8"]. Empty = no choice. */
+  options?: string[];
+  optionLabel?: string; // e.g. "Bangle size", "Colour"
   images: string[];
   rating: number;
   reviewCount: number;
@@ -54,6 +55,7 @@ export interface Category {
   bannerImage?: string;
   itemCount: number;
   featured?: boolean;
+  order?: number;
 }
 
 export interface CartItem {
@@ -101,6 +103,7 @@ export interface Order {
   deliveryCharge: number;
   totalAmount: number;
   paymentMethod: 'Cash on Delivery';
+  couponCode?: string;
   status: OrderStatus;
   orderStatus?: OrderStatus;
   trackingNumber?: string;
@@ -145,6 +148,11 @@ export interface StoreSettings {
   freeDeliveryThreshold: number;
   currency: string;
   currencySymbol: string;
+  /** Email address that receives a notification for every new order. */
+  orderAlertEmail?: string;
+  instagramUrl?: string;
+  facebookUrl?: string;
+  tiktokUrl?: string;
   heroBanner: HeroBannerConfig;
   announcementText: string;
   returnPolicy: string;

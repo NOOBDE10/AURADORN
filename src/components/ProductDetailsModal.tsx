@@ -1,5 +1,6 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useStore } from '../context/StoreContext';
+import { formatPrice } from '../lib/format';
 import { Product, Review } from '../types';
 import { 
   X, 
@@ -33,13 +34,12 @@ export const ProductDetailsModal: React.FC = () => {
     products,
     reviews,
     showToast,
-    refreshData
+    refreshData: _refreshData
   } = useStore();
 
   const [activeImageIndex, setActiveImageIndex] = useState(0);
   const [quantity, setQuantity] = useState(1);
-  const [selectedMetal, setSelectedMetal] = useState<string>('');
-  const [selectedSize, setSelectedSize] = useState<string>('Standard (Adjustable)');
+  const [selectedSize, setSelectedSize] = useState<string>('');
   const [activeTab, setActiveTab] = useState<'specs' | 'reviews' | 'care' | 'delivery'>('specs');
   const [isZoomed, setIsZoomed] = useState(false);
   const [mousePos, setMousePos] = useState({ x: 0, y: 0 });
@@ -52,17 +52,22 @@ export const ProductDetailsModal: React.FC = () => {
   const [reviewerEmail, setReviewerEmail] = useState('');
   const [isSubmittingReview, setIsSubmittingReview] = useState(false);
 
+  // Reset per-product choices whenever a different product is opened.
+  useEffect(() => {
+    setActiveImageIndex(0);
+    setQuantity(1);
+    setSelectedSize('');
+    setActiveTab('specs');
+  }, [selectedProduct?.id]);
+
   if (!selectedProduct) return null;
 
-  const isWishlisted = isInWishlist(selectedProduct.id);
+  const productOptions = selectedProduct.options || [];
+  const optionLabel = selectedProduct.optionLabel || 'Size';
+  const needsOption = productOptions.length > 0 && !selectedSize;
+  const outOfStock = selectedProduct.stock <= 0 || selectedProduct.status === 'out_of_stock';
 
-  // Metal options
-  const metalOptions = [
-    selectedProduct.details.metal,
-    '18K Solid Warm Yellow Gold',
-    '18K Noble Rose Gold',
-    'Platinum 950 / White Gold'
-  ].filter((v, i, a) => a.indexOf(v) === i);
+  const isWishlisted = isInWishlist(selectedProduct.id);
 
   // Related products
   const relatedProducts = products
@@ -80,27 +85,32 @@ export const ProductDetailsModal: React.FC = () => {
   };
 
   const handleAddToCart = () => {
-    addToCart(selectedProduct, quantity, selectedMetal || selectedProduct.details.metal, selectedSize);
+    if (needsOption) {
+      showToast(`Please choose a ${optionLabel.toLowerCase()}.`, 'info');
+      return;
+    }
+    addToCart(selectedProduct, quantity, undefined, selectedSize || undefined);
   };
 
   const handleBuyNow = () => {
-    addToCart(selectedProduct, quantity, selectedMetal || selectedProduct.details.metal, selectedSize);
+    if (needsOption) {
+      showToast(`Please choose a ${optionLabel.toLowerCase()}.`, 'info');
+      return;
+    }
+    addToCart(selectedProduct, quantity, undefined, selectedSize || undefined);
     closeProductDetails();
     openCheckout();
   };
 
   const handleWhatsAppOrder = () => {
-    const metal = selectedMetal || selectedProduct.details.metal;
-    const message = `Hello ${settings.brandName}, I would like to place an order for the following fine jewellery item:
+    const message = `Hello ${settings.brandName}, I would like to order:
 
 *Product:* ${selectedProduct.name}
-*SKU / Ref:* ${selectedProduct.id}
+*Code:* ${selectedProduct.id}
 *Quantity:* ${quantity}
-*Price:* $${(selectedProduct.price * quantity).toLocaleString()}
-*Selected Metal:* ${metal}
-*Size:* ${selectedSize}
+*Price:* ${formatPrice(selectedProduct.price * quantity)}${selectedSize ? `\n*${optionLabel}:* ${selectedSize}` : ''}
 
-Please confirm availability and guide me through the Cash on Delivery dispatch.`;
+Please confirm availability for Cash on Delivery.`;
 
     const encoded = encodeURIComponent(message);
     const cleanPhone = settings.whatsappNumber.replace(/[^0-9]/g, '');
@@ -119,18 +129,16 @@ Please confirm availability and guide me through the Cash on Delivery dispatch.`
         productId: selectedProduct.id,
         productName: selectedProduct.name,
         customerName: reviewerName,
-        customerEmail: reviewerEmail || 'customer@aajewelers.com',
+        customerEmail: reviewerEmail,
         rating: reviewRating,
-        title: reviewTitle || 'Exceptional Craftsmanship',
-        comment: reviewComment,
-        verifiedPurchase: true
+        title: reviewTitle,
+        comment: reviewComment
       });
-      showToast('Thank you! Your verified review has been published.', 'gold');
+      showToast('Thank you! Your review will appear after it is approved.', 'gold');
       setReviewTitle('');
       setReviewComment('');
       setReviewerName('');
       setReviewerEmail('');
-      refreshData();
     } catch (err) {
       console.error(err);
     } finally {
@@ -147,7 +155,7 @@ Please confirm availability and guide me through the Cash on Delivery dispatch.`
             <div className="w-8 h-8 rounded-full overflow-hidden border border-[#C9A25D] bg-[#0E0D0B] shrink-0 p-0.5 shadow-sm">
               <img 
                 src="/logo.png" 
-                alt="AA JEWELLERS" 
+                alt="Aura Adorn logo" 
                 onError={(e) => { (e.currentTarget as HTMLImageElement).src = '/icon.svg'; }} 
                 className="w-full h-full object-cover rounded-full" 
               />
@@ -190,7 +198,7 @@ Please confirm availability and guide me through the Cash on Delivery dispatch.`
 
                 {/* Subtle instruction pill */}
                 <div className="absolute bottom-3 left-3 bg-black/70 backdrop-blur-xs text-[#E5C378] border border-[#C9A25D]/30 text-[11px] font-sans px-3 py-1 rounded-full pointer-events-none opacity-80 group-hover:opacity-0 transition-opacity">
-                  Hover to inspect carats & metal finish
+                  Hover to zoom
                 </div>
 
                 {/* Wishlist button */}
@@ -225,18 +233,18 @@ Please confirm availability and guide me through the Cash on Delivery dispatch.`
               <div className="grid grid-cols-3 gap-3 pt-4 border-t border-[#26211B] text-center">
                 <div className="p-3 bg-[#14120F] rounded-xl border border-[#26211B]">
                   <ShieldCheck className="w-5 h-5 text-[#E5C378] mx-auto mb-1" />
-                  <span className="text-[11px] font-sans font-medium text-[#FAF7F2] block">GIA / IGI Certified</span>
-                  <span className="text-[10px] text-stone-400">Natural Stones</span>
+                  <span className="text-[11px] font-sans font-medium text-[#FAF7F2] block">Quality Finish</span>
+                  <span className="text-[10px] text-stone-400">Checked before dispatch</span>
                 </div>
                 <div className="p-3 bg-[#14120F] rounded-xl border border-[#26211B]">
                   <Truck className="w-5 h-5 text-[#E5C378] mx-auto mb-1" />
                   <span className="text-[11px] font-sans font-medium text-[#FAF7F2] block">Cash on Delivery</span>
-                  <span className="text-[10px] text-stone-400">White Glove Courier</span>
+                  <span className="text-[10px] text-stone-400">All over Pakistan</span>
                 </div>
                 <div className="p-3 bg-[#14120F] rounded-xl border border-[#26211B]">
                   <Award className="w-5 h-5 text-[#E5C378] mx-auto mb-1" />
-                  <span className="text-[11px] font-sans font-medium text-[#FAF7F2] block">Lifetime Guarantee</span>
-                  <span className="text-[10px] text-stone-400">Complimentary Polish</span>
+                  <span className="text-[11px] font-sans font-medium text-[#FAF7F2] block">Easy Exchange</span>
+                  <span className="text-[10px] text-stone-400">If damaged on arrival</span>
                 </div>
               </div>
             </div>
@@ -259,11 +267,11 @@ Please confirm availability and guide me through the Cash on Delivery dispatch.`
                   {selectedProduct.stock > 0 ? (
                     <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-950/70 text-emerald-300 text-xs font-medium border border-emerald-500/30">
                       <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-                      {selectedProduct.stock <= 3 ? `Only ${selectedProduct.stock} Left In Vault` : 'Available in Boutique'}
+                      {selectedProduct.stock <= 3 ? `Only ${selectedProduct.stock} left` : 'In stock'}
                     </span>
                   ) : (
                     <span className="px-2.5 py-1 rounded-full bg-stone-900 text-stone-400 text-xs font-medium border border-stone-800">
-                      Bespoke Order Only
+                      Out of stock
                     </span>
                   )}
                 </div>
@@ -279,12 +287,12 @@ Please confirm availability and guide me through the Cash on Delivery dispatch.`
                 {/* Price Display */}
                 <div className="flex items-baseline gap-3 py-2 border-y border-[#26211B]">
                   <span className="font-serif text-3xl font-semibold text-[#E5C378]">
-                    ${selectedProduct.price.toLocaleString()}
+                    {formatPrice(selectedProduct.price)}
                   </span>
                   {selectedProduct.originalPrice > selectedProduct.price && (
                     <>
                       <span className="font-sans text-base text-stone-500 line-through">
-                        ${selectedProduct.originalPrice.toLocaleString()}
+                        {formatPrice(selectedProduct.originalPrice)}
                       </span>
                       <span className="px-2 py-0.5 bg-rose-950/80 text-rose-300 border border-rose-500/30 text-xs font-semibold rounded">
                         Save {selectedProduct.discountPercentage}%
@@ -298,48 +306,29 @@ Please confirm availability and guide me through the Cash on Delivery dispatch.`
                   {selectedProduct.description}
                 </p>
 
-                {/* Metal Selection */}
-                <div className="space-y-2 pt-2">
-                  <label className="block text-xs font-sans uppercase tracking-widest text-[#E5C378] font-semibold">
-                    Precious Metal Finish
-                  </label>
-                  <div className="grid grid-cols-2 gap-2">
-                    {metalOptions.map((metal, i) => (
-                      <button
-                        key={i}
-                        onClick={() => setSelectedMetal(metal)}
-                        className={`p-2 text-xs font-sans rounded-xl border text-left transition-all cursor-pointer truncate ${
-                          (selectedMetal || selectedProduct.details.metal) === metal
-                            ? 'border-[#E5C378] bg-[#1C1814] font-semibold text-[#E5C378] shadow-xs'
-                            : 'border-[#26211B] bg-[#14120F] text-[#A89F91] hover:border-[#C9A25D]/50'
-                        }`}
-                      >
-                        {metal}
-                      </button>
-                    ))}
+                {/* Customer choice (size / colour), configured per product in admin */}
+                {productOptions.length > 0 && (
+                  <div className="space-y-2 pt-2">
+                    <label className="block text-xs font-semibold uppercase tracking-wider text-[#C5BDB2] font-sans">
+                      {optionLabel}
+                    </label>
+                    <div className="flex flex-wrap gap-2">
+                      {productOptions.map(opt => (
+                        <button
+                          key={opt}
+                          onClick={() => setSelectedSize(opt)}
+                          className={`px-3 py-2 text-xs font-sans rounded-xl border transition-all cursor-pointer ${
+                            selectedSize === opt
+                              ? 'border-[#E5C378] bg-[#1C1814] font-semibold text-[#E5C378]'
+                              : 'border-[#26211B] bg-[#14120F] text-[#A89F91] hover:border-[#C9A25D]/50'
+                          }`}
+                        >
+                          {opt}
+                        </button>
+                      ))}
+                    </div>
                   </div>
-                </div>
-
-                {/* Size Selection */}
-                <div className="space-y-2">
-                  <label className="block text-xs font-sans uppercase tracking-widest text-[#E5C378] font-semibold">
-                    Size / Fit
-                  </label>
-                  <select
-                    value={selectedSize}
-                    onChange={(e) => setSelectedSize(e.target.value)}
-                    className="w-full bg-[#14120F] border border-[#26211B] rounded-xl p-2.5 text-xs font-sans text-[#FAF7F2] focus:outline-none focus:border-[#C9A25D] cursor-pointer"
-                  >
-                    <option value="Standard (Adjustable)">Standard Fitting (With Free Resizing)</option>
-                    <option value="Size 5 / 49mm">Size 5 (49 mm)</option>
-                    <option value="Size 6 / 51mm">Size 6 (51 mm)</option>
-                    <option value="Size 7 / 54mm">Size 7 (54 mm)</option>
-                    <option value="Size 8 / 57mm">Size 8 (57 mm)</option>
-                    <option value="Bangle 2.4 (Small)">Bangle Size 2.4 (Small)</option>
-                    <option value="Bangle 2.6 (Medium)">Bangle Size 2.6 (Medium)</option>
-                    <option value="Bangle 2.8 (Large)">Bangle Size 2.8 (Large)</option>
-                  </select>
-                </div>
+                )}
 
                 {/* Quantity Selector */}
                 <div className="flex items-center gap-4 pt-2">
@@ -373,7 +362,7 @@ Please confirm availability and guide me through the Cash on Delivery dispatch.`
                 <div className="grid grid-cols-2 gap-3">
                   <button
                     onClick={handleAddToCart}
-                    disabled={selectedProduct.stock === 0}
+                    disabled={outOfStock}
                     className="py-3.5 px-4 bg-[#14120F] hover:bg-[#1E1B16] text-[#FAF7F2] border border-[#C9A25D]/50 font-sans text-xs font-semibold uppercase tracking-wider rounded-xl transition-all flex items-center justify-center gap-2 cursor-pointer shadow-xs disabled:opacity-50 active:scale-95 hover:text-[#E5C378]"
                   >
                     <ShoppingBag className="w-4 h-4 text-[#E5C378]" />
@@ -382,11 +371,11 @@ Please confirm availability and guide me through the Cash on Delivery dispatch.`
 
                   <button
                     onClick={handleBuyNow}
-                    disabled={selectedProduct.stock === 0}
+                    disabled={outOfStock}
                     className="py-3.5 px-4 bg-gradient-to-r from-[#C9A25D] via-[#E5C378] to-[#C9A25D] hover:brightness-110 text-[#0B0A08] font-sans text-xs font-bold uppercase tracking-wider rounded-xl transition-all flex items-center justify-center gap-2 cursor-pointer shadow-lg disabled:opacity-50 active:scale-95"
                   >
                     <Zap className="w-4 h-4 text-[#0B0A08]" />
-                    <span>Buy Now (COD)</span>
+                    <span>{outOfStock ? 'Out of Stock' : 'Buy Now (COD)'}</span>
                   </button>
                 </div>
 
@@ -395,7 +384,7 @@ Please confirm availability and guide me through the Cash on Delivery dispatch.`
                   className="w-full py-3.5 px-4 bg-[#25D366] hover:bg-[#20bd5a] text-white font-sans text-xs font-semibold uppercase tracking-wider rounded-xl transition-all flex items-center justify-center gap-2 shadow-md cursor-pointer active:scale-[0.98]"
                 >
                   <MessageCircle className="w-4 h-4" />
-                  <span>Order Directly via WhatsApp</span>
+                  <span>Order on WhatsApp</span>
                 </button>
               </div>
             </div>
@@ -419,7 +408,7 @@ Please confirm availability and guide me through the Cash on Delivery dispatch.`
                   activeTab === 'reviews' ? 'border-[#E5C378] text-[#E5C378] font-semibold' : 'border-transparent text-stone-400 hover:text-[#FAF7F2]'
                 }`}
               >
-                Patron Reviews ({productReviews.length})
+                Reviews ({productReviews.length})
               </button>
               <button
                 onClick={() => setActiveTab('care')}
@@ -427,7 +416,7 @@ Please confirm availability and guide me through the Cash on Delivery dispatch.`
                   activeTab === 'care' ? 'border-[#E5C378] text-[#E5C378] font-semibold' : 'border-transparent text-stone-400 hover:text-[#FAF7F2]'
                 }`}
               >
-                Craftsmanship & Care
+                Care & Info
               </button>
               <button
                 onClick={() => setActiveTab('delivery')}
@@ -442,31 +431,23 @@ Please confirm availability and guide me through the Cash on Delivery dispatch.`
             {/* Tab Content */}
             <div className="py-6 text-sm font-sans text-[#A89F91]">
               {activeTab === 'specs' && (
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 bg-[#14120F] p-6 rounded-2xl border border-[#26211B]">
-                  <div className="flex justify-between py-2 border-b border-[#241F1A]">
-                    <span className="text-[#8C8275]">Metal Purity:</span>
-                    <span className="font-medium text-[#FAF7F2]">{selectedProduct.details.metal}</span>
-                  </div>
-                  <div className="flex justify-between py-2 border-b border-[#241F1A]">
-                    <span className="text-[#8C8275]">Gold Karat:</span>
-                    <span className="font-medium text-[#FAF7F2]">{selectedProduct.details.karat || '18 Karat'}</span>
-                  </div>
-                  <div className="flex justify-between py-2 border-b border-[#241F1A]">
-                    <span className="text-[#8C8275]">Total Weight:</span>
-                    <span className="font-medium text-[#FAF7F2]">{selectedProduct.details.weight || '4.50 grams'}</span>
-                  </div>
-                  <div className="flex justify-between py-2 border-b border-[#241F1A]">
-                    <span className="text-[#8C8275]">Precious Stone:</span>
-                    <span className="font-medium text-[#FAF7F2]">{selectedProduct.details.stone || 'Natural VVS Diamond'}</span>
-                  </div>
-                  <div className="flex justify-between py-2 border-b border-[#241F1A]">
-                    <span className="text-[#8C8275]">Gemstone Carats:</span>
-                    <span className="font-medium text-[#FAF7F2]">{selectedProduct.details.gemstoneWeight || '1.50 Carats'}</span>
-                  </div>
-                  <div className="flex justify-between py-2 border-b border-[#241F1A]">
-                    <span className="text-[#8C8275]">Grading Report:</span>
-                    <span className="font-medium text-[#FAF7F2]">{selectedProduct.details.certification || 'GIA Certified'}</span>
-                  </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-3 text-xs">
+                  {([
+                    ['Material & finish', selectedProduct.details?.metal],
+                    ['Stones', selectedProduct.details?.stone],
+                    ['Colour', selectedProduct.details?.color],
+                    ['Includes', selectedProduct.details?.includes],
+                    ['Size / dimensions', selectedProduct.details?.dimensions],
+                    ['Weight', selectedProduct.details?.weight],
+                    ['Type', 'Artificial (imitation) jewellery'],
+                  ] as const)
+                    .filter(([, v]) => Boolean(v))
+                    .map(([label, value]) => (
+                      <div key={label} className="flex justify-between border-b border-[#26211B] pb-2">
+                        <span className="text-[#8C8275]">{label}:</span>
+                        <span className="font-medium text-[#FAF7F2] text-right">{value}</span>
+                      </div>
+                    ))}
                 </div>
               )}
 
@@ -475,7 +456,7 @@ Please confirm availability and guide me through the Cash on Delivery dispatch.`
                   {/* Reviews List */}
                   <div className="space-y-4">
                     {productReviews.length === 0 ? (
-                      <p className="text-stone-500 italic">No reviews yet for this masterpiece. Be the first patron to share your experience!</p>
+                      <p className="text-stone-500 italic">No reviews yet. Be the first to share your experience!</p>
                     ) : (
                       productReviews.map(r => (
                         <div key={r.id} className="p-4 bg-[#14120F] rounded-xl border border-[#26211B] space-y-2">
@@ -500,7 +481,7 @@ Please confirm availability and guide me through the Cash on Delivery dispatch.`
 
                   {/* Write a Review Form */}
                   <form onSubmit={handleReviewSubmit} className="bg-[#14120F] p-6 rounded-2xl border border-[#26211B] space-y-4">
-                    <h4 className="font-serif text-lg text-[#FAF7F2]">Leave a Patron Review</h4>
+                    <h4 className="font-serif text-lg text-[#FAF7F2]">Write a Review</h4>
                     <div className="flex items-center gap-2">
                       <span className="text-xs font-semibold text-stone-400">Your Rating:</span>
                       <div className="flex gap-1">
@@ -566,7 +547,7 @@ Please confirm availability and guide me through the Cash on Delivery dispatch.`
                     {settings.warrantyPolicy}
                   </p>
                   <p className="text-xs leading-relaxed text-[#C5BDB2]">
-                    To maintain the luminous brilliance of your fine jewellery, avoid direct exposure to perfumes, domestic chemicals, and harsh abrasive surfaces. Store individually in your velvet AA JEWELERS presentation case.
+                    Put your jewellery on after perfume and make-up, take it off before bathing or exercise, wipe gently with a soft dry cloth and store it in an airtight pouch to keep the plating bright.
                   </p>
                 </div>
               )}
@@ -601,7 +582,7 @@ Please confirm availability and guide me through the Cash on Delivery dispatch.`
                     <img src={p.images[0]} alt={p.name} className="w-16 h-16 object-cover rounded-lg border border-[#26211B] bg-[#181613]" />
                     <div>
                       <h4 className="font-serif text-sm font-medium text-[#FAF7F2] group-hover:text-[#E5C378] transition-colors line-clamp-1">{p.name}</h4>
-                      <p className="text-xs font-sans text-[#E5C378] font-semibold mt-1">${p.price.toLocaleString()}</p>
+                      <p className="text-xs font-sans text-[#E5C378] font-semibold mt-1">{formatPrice(p.price)}</p>
                     </div>
                   </div>
                 ))}

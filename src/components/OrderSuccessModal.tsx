@@ -1,14 +1,14 @@
 import React from 'react';
 import { Order } from '../types';
 import { useStore } from '../context/StoreContext';
+import { formatPrice } from '../lib/format';
 import { 
   CheckCircle2, 
   Package, 
   MessageCircle, 
   Truck, 
   ArrowRight, 
-  Sparkles,
-  Printer
+  Sparkles
 } from 'lucide-react';
 
 interface OrderSuccessModalProps {
@@ -23,14 +23,14 @@ export const OrderSuccessModal: React.FC<OrderSuccessModalProps> = ({ order, onC
 
   const handleWhatsAppConfirm = () => {
     const text = encodeURIComponent(
-      `Hello ${settings.brandName}, I have placed Order #${order.id} for Cash on Delivery ($${order.totalAmount.toLocaleString()}). Please confirm dispatch to ${order.city}.`
+      `Hello ${settings.brandName}, I have placed order ${order.id} (Cash on Delivery, ${formatPrice(order.totalAmount)}). Please confirm my order for delivery to ${order.city}.`
     );
     window.open(`https://wa.me/${settings.whatsappNumber.replace(/[^0-9]/g, '')}?text=${text}`, '_blank');
   };
 
   const handleTrack = () => {
     onClose();
-    openTracking(order.id);
+    openTracking(order.id, order.phone);
   };
 
   return (
@@ -41,7 +41,7 @@ export const OrderSuccessModal: React.FC<OrderSuccessModalProps> = ({ order, onC
         <div className="w-20 h-20 bg-[#0E0D0B] rounded-full flex items-center justify-center mx-auto border-2 border-[#C9A25D] p-1 shadow-[0_0_25px_rgba(201,162,93,0.4)]">
           <img 
             src="/logo.png" 
-            alt="AA JEWELLERS" 
+            alt={`${settings.brandName} logo`} 
             onError={(e) => { (e.currentTarget as HTMLImageElement).src = '/icon.svg'; }} 
             className="w-full h-full object-cover rounded-full" 
           />
@@ -50,13 +50,13 @@ export const OrderSuccessModal: React.FC<OrderSuccessModalProps> = ({ order, onC
         {/* Title */}
         <div className="space-y-1">
           <span className="text-xs uppercase tracking-[0.3em] text-[#E5C378] font-semibold font-sans">
-            Commission Registered Successfully
+            Order Placed Successfully
           </span>
           <h2 className="font-serif text-2xl sm:text-3xl font-medium text-[#FAF7F2]">
-            Thank You for Choosing AA JEWELLERS
+            Thank you for your order!
           </h2>
           <p className="text-xs font-sans text-[#A89F91]">
-            Our master jeweller has received your commission. Your order is safely secured in our vault.
+            We have received your order and will call or WhatsApp you shortly to confirm it. Please save your order number.
           </p>
         </div>
 
@@ -64,7 +64,7 @@ export const OrderSuccessModal: React.FC<OrderSuccessModalProps> = ({ order, onC
         <div className="p-4 bg-[#14120F] rounded-2xl border border-[#26211B] flex items-center justify-between text-left">
           <div>
             <span className="text-[10px] uppercase font-sans text-stone-400 tracking-wider block">
-              Unique Order Reference
+              Order Number
             </span>
             <span className="font-mono text-base sm:text-lg font-bold text-[#E5C378]">
               {order.id}
@@ -72,10 +72,10 @@ export const OrderSuccessModal: React.FC<OrderSuccessModalProps> = ({ order, onC
           </div>
           <div className="text-right">
             <span className="text-[10px] uppercase font-sans text-stone-400 tracking-wider block">
-              Cash Due at Door
+              Pay on Delivery
             </span>
             <span className="font-serif text-lg font-bold text-emerald-400">
-              ${order.totalAmount.toLocaleString()}
+              {formatPrice(order.totalAmount)}
             </span>
           </div>
         </div>
@@ -83,7 +83,7 @@ export const OrderSuccessModal: React.FC<OrderSuccessModalProps> = ({ order, onC
         {/* Items Summary preview */}
         <div className="bg-[#14120F] rounded-2xl border border-[#26211B] p-4 text-left space-y-3">
           <h4 className="text-xs font-sans font-semibold uppercase tracking-wider text-[#E5C378] border-b border-[#241F1A] pb-2">
-            Reserved Haute Joaillerie ({order.items.length})
+            Your Items ({order.items.length})
           </h4>
           <div className="divide-y divide-[#241F1A] max-h-40 overflow-y-auto">
             {order.items.map((item, idx) => (
@@ -92,17 +92,16 @@ export const OrderSuccessModal: React.FC<OrderSuccessModalProps> = ({ order, onC
                   <img src={item.productImage} alt={item.productName} className="w-10 h-10 object-cover rounded border border-[#26211B] bg-[#181613]" />
                   <div>
                     <p className="font-serif font-medium text-[#FAF7F2] line-clamp-1">{item.productName}</p>
-                    <p className="text-[10px] text-[#A89F91]">Qty: {item.quantity} • {item.metal || '18K Gold'}</p>
+                    <p className="text-[10px] text-[#A89F91]">Qty: {item.quantity}{item.size ? ` • ${item.size}` : ''}</p>
                   </div>
                 </div>
-                <span className="font-medium text-[#E5C378]">${item.total.toLocaleString()}</span>
+                <span className="font-medium text-[#E5C378]">{formatPrice(item.total)}</span>
               </div>
             ))}
           </div>
 
           <div className="pt-2 border-t border-[#241F1A] text-xs font-sans text-[#A89F91] space-y-1">
             <p><span className="font-semibold text-[#FAF7F2]">Deliver To:</span> {order.customerName}, {order.address}, {order.city} ({order.phone})</p>
-            <p className="text-emerald-400 font-medium">✓ Admin notification dispatched to auraadornjewellers@gmail.com</p>
           </div>
         </div>
 
@@ -129,7 +128,7 @@ export const OrderSuccessModal: React.FC<OrderSuccessModalProps> = ({ order, onC
           onClick={onClose}
           className="text-xs font-sans text-stone-400 hover:text-[#FAF7F2] font-medium cursor-pointer"
         >
-          Return to Boutique Home
+          Continue Shopping
         </button>
       </div>
     </div>

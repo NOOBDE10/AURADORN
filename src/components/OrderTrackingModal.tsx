@@ -1,5 +1,6 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useStore } from '../context/StoreContext';
+import { formatPrice } from '../lib/format';
 import { 
   X, 
   Search, 
@@ -13,49 +14,57 @@ import {
 import { Order } from '../types';
 
 export const OrderTrackingModal: React.FC = () => {
-  const { isTrackingOpen, closeTracking, trackingOrderId, orders, fetchOrder } = useStore();
+  const { isTrackingOpen, closeTracking, trackingOrderId, trackingPhone, fetchOrder, settings } = useStore();
 
-  const [query, setQuery] = useState(trackingOrderId || '');
-  const [searchedOrder, setSearchedOrder] = useState<Order | null>(
-    trackingOrderId ? orders.find(o => o.id === trackingOrderId) || null : null
-  );
-  const [hasSearched, setHasSearched] = useState(Boolean(trackingOrderId));
+  const [query, setQuery] = useState('');
+  const [phone, setPhone] = useState('');
+  const [searchedOrder, setSearchedOrder] = useState<Order | null>(null);
+  const [hasSearched, setHasSearched] = useState(false);
   const [isSearching, setIsSearching] = useState(false);
+  const [errorMsg, setErrorMsg] = useState('');
+
+  const runSearch = async (orderId: string, phoneNumber: string) => {
+    setErrorMsg('');
+    if (!orderId.trim() || !phoneNumber.trim()) {
+      setErrorMsg('Please enter your order number and phone number.');
+      return;
+    }
+    setIsSearching(true);
+    try {
+      setSearchedOrder(await fetchOrder(orderId.trim(), phoneNumber.trim()));
+      setHasSearched(true);
+    } catch (err: any) {
+      setErrorMsg(err.message || 'Could not look up the order. Please try again.');
+    } finally {
+      setIsSearching(false);
+    }
+  };
+
+  // Reset (and auto-search when opened from the order confirmation) each time the modal opens.
+  useEffect(() => {
+    if (!isTrackingOpen) return;
+    setQuery(trackingOrderId || '');
+    setPhone(trackingPhone || '');
+    setSearchedOrder(null);
+    setHasSearched(false);
+    setErrorMsg('');
+    if (trackingOrderId && trackingPhone) runSearch(trackingOrderId, trackingPhone);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isTrackingOpen, trackingOrderId, trackingPhone]);
 
   if (!isTrackingOpen) return null;
 
-  const handleSearch = async (e: React.FormEvent) => {
+  const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
-    const cleanQuery = query.trim().toUpperCase();
-    if (!cleanQuery) return;
-
-    setIsSearching(true);
-    const localFound = orders.find(o => 
-      o.id.toUpperCase() === cleanQuery || 
-      o.phone.includes(query.trim()) ||
-      (o.email && o.email.toLowerCase() === query.trim().toLowerCase())
-    );
-
-    if (localFound) {
-      setSearchedOrder(localFound);
-      setHasSearched(true);
-      setIsSearching(false);
-      return;
-    }
-
-    // Attempt lookup by order identifier from boutique vault
-    const remoteFound = await fetchOrder(cleanQuery);
-    setSearchedOrder(remoteFound);
-    setHasSearched(true);
-    setIsSearching(false);
+    runSearch(query, phone);
   };
 
   const steps = [
-    { title: 'Order Commissioned', desc: 'Received into AA JEWELERS vault registry', status: 'pending' },
-    { title: 'Boutique Confirmation', desc: 'Call verification & hallmark seal confirmed', status: 'confirmed' },
-    { title: 'Vault Polish & Assembly', desc: 'Hand-buffed and packed into velvet case', status: 'processing' },
-    { title: 'Insured White-Glove Dispatch', desc: 'Handed over to secure armoured courier', status: 'shipped' },
-    { title: 'Delivered & Cash Received', desc: 'Inspected and signed by patron', status: 'delivered' }
+    { title: 'Order Received', desc: 'We have received your order', status: 'pending' },
+    { title: 'Confirmed', desc: 'We have confirmed your order by phone / WhatsApp', status: 'confirmed' },
+    { title: 'Packed', desc: 'Your jewellery is packed and ready', status: 'processing' },
+    { title: 'Handed to Courier', desc: 'Your parcel is on its way', status: 'shipped' },
+    { title: 'Delivered', desc: 'Delivered and cash collected', status: 'delivered' }
   ];
 
   const getStepState = (stepKey: string, currentStatus: string) => {
@@ -76,7 +85,7 @@ export const OrderTrackingModal: React.FC = () => {
         <div className="px-6 py-4 border-b border-[#241F1A] bg-[#0A0908] flex items-center justify-between sticky top-0 z-10">
           <div className="flex items-center gap-2">
             <Truck className="w-5 h-5 text-[#E5C378]" />
-            <h2 className="font-serif text-xl font-medium text-[#FAF7F2]">Track Commission Status</h2>
+            <h2 className="font-serif text-xl font-medium text-[#FAF7F2]">Track Your Order</h2>
           </div>
           <button
             onClick={closeTracking}
@@ -89,32 +98,45 @@ export const OrderTrackingModal: React.FC = () => {
 
         <div data-lenis-prevent className="p-6 overflow-y-auto space-y-6">
           {/* Search Bar */}
-          <form onSubmit={handleSearch} className="flex gap-2">
-            <div className="relative flex-1">
-              <Search className="w-4 h-4 text-stone-500 absolute left-3.5 top-1/2 -translate-y-1/2" />
+          <form onSubmit={handleSearch} className="space-y-2">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+              <div className="relative">
+                <Search className="w-4 h-4 text-stone-500 absolute left-3.5 top-1/2 -translate-y-1/2" />
+                <input
+                  type="text"
+                  value={query}
+                  onChange={(e) => setQuery(e.target.value)}
+                  placeholder="Order number, e.g. AA-260929-XXXXX"
+                  aria-label="Order number"
+                  className="w-full bg-[#14120F] border border-[#26211B] rounded-xl py-3 pl-10 pr-4 text-xs font-sans text-[#FAF7F2] placeholder-stone-500 focus:outline-none focus:border-[#C9A25D]"
+                />
+              </div>
               <input
-                type="text"
-                value={query}
-                onChange={(e) => setQuery(e.target.value)}
-                placeholder="Enter Order ID (e.g. AC-2026-...) or Phone number"
-                className="w-full bg-[#14120F] border border-[#26211B] rounded-xl py-3 pl-10 pr-4 text-xs font-sans text-[#FAF7F2] placeholder-stone-500 focus:outline-none focus:border-[#C9A25D]"
+                type="tel"
+                value={phone}
+                onChange={(e) => setPhone(e.target.value)}
+                placeholder="Phone used at checkout"
+                aria-label="Phone number"
+                className="w-full bg-[#14120F] border border-[#26211B] rounded-xl py-3 px-4 text-xs font-sans text-[#FAF7F2] placeholder-stone-500 focus:outline-none focus:border-[#C9A25D]"
               />
             </div>
             <button
               type="submit"
-              className="px-5 py-3 bg-gradient-to-r from-[#C9A25D] to-[#E5C378] hover:brightness-110 text-[#0B0A08] font-sans text-xs font-bold uppercase tracking-wider rounded-xl transition-all cursor-pointer shadow-xs"
+              disabled={isSearching}
+              className="w-full px-5 py-3 bg-gradient-to-r from-[#C9A25D] to-[#E5C378] hover:brightness-110 text-[#0B0A08] font-sans text-xs font-bold uppercase tracking-wider rounded-xl transition-all cursor-pointer shadow-xs disabled:opacity-60"
             >
-              Track
+              {isSearching ? 'Searching...' : 'Track Order'}
             </button>
+            {errorMsg && <p className="text-xs text-rose-400">{errorMsg}</p>}
           </form>
 
           {/* Result Area */}
-          {hasSearched && !searchedOrder && (
+          {hasSearched && !searchedOrder && !isSearching && (
             <div className="p-8 text-center bg-[#14120F] rounded-2xl border border-[#26211B] space-y-2">
               <AlertCircle className="w-8 h-8 text-amber-400 mx-auto" />
-              <h3 className="font-serif text-lg text-[#FAF7F2]">No Registry Match Found</h3>
+              <h3 className="font-serif text-lg text-[#FAF7F2]">No order found</h3>
               <p className="text-xs font-sans text-[#A89F91] max-w-sm mx-auto">
-                Please verify your Order reference format (e.g. AC-2026-XXXX) or the registered phone number.
+                Please check the order number and use the same phone number you entered at checkout. Need help? Message us on WhatsApp: {settings.phone}
               </p>
             </div>
           )}
@@ -124,7 +146,7 @@ export const OrderTrackingModal: React.FC = () => {
               {/* Order Meta Header */}
               <div className="p-4 bg-[#14120F] rounded-2xl border border-[#26211B] flex flex-wrap items-center justify-between gap-3">
                 <div>
-                  <span className="text-[10px] uppercase font-sans text-stone-400 tracking-wider">Order Reference</span>
+                  <span className="text-[10px] uppercase font-sans text-stone-400 tracking-wider">Order Number</span>
                   <p className="font-mono text-base font-bold text-[#E5C378]">{searchedOrder.id}</p>
                 </div>
                 <div>
@@ -134,20 +156,30 @@ export const OrderTrackingModal: React.FC = () => {
                 <div>
                   <span className="text-[10px] uppercase font-sans text-stone-400 tracking-wider">Status</span>
                   <p className="font-sans text-xs font-semibold capitalize px-2.5 py-0.5 rounded-full bg-amber-950/80 text-amber-300 border border-amber-500/30 inline-block">
-                    {searchedOrder.status || searchedOrder.orderStatus}
+                    {searchedOrder.status}
                   </p>
                 </div>
               </div>
 
+              {searchedOrder.status === 'cancelled' && (
+                <p className="text-xs text-rose-400">This order was cancelled. Contact us on WhatsApp if you have questions.</p>
+              )}
+              {(searchedOrder.courierName || searchedOrder.trackingNumber) && (
+                <p className="text-xs font-sans text-[#C5BDB2]">
+                  Courier: <span className="text-[#FAF7F2] font-medium">{searchedOrder.courierName || '—'}</span>
+                  {searchedOrder.trackingNumber && <> · Tracking no: <span className="font-mono text-[#E5C378]">{searchedOrder.trackingNumber}</span></>}
+                </p>
+              )}
+
               {/* Visual Timeline */}
               <div className="bg-[#14120F] rounded-2xl border border-[#26211B] p-6 space-y-6">
                 <h4 className="font-serif text-base font-medium text-[#FAF7F2] border-b border-[#241F1A] pb-3">
-                  Vault Logistics Timeline
+                  Order Progress
                 </h4>
 
                 <div className="space-y-6 relative pl-6 before:absolute before:left-2.5 before:top-2 before:bottom-2 before:w-0.5 before:bg-[#26211B]">
                   {steps.map((step, idx) => {
-                    const currentStatus = searchedOrder.status || searchedOrder.orderStatus;
+                    const currentStatus = searchedOrder.status;
                     const state = getStepState(step.status, currentStatus);
                     return (
                       <div key={idx} className="relative flex items-start gap-4">
@@ -177,7 +209,7 @@ export const OrderTrackingModal: React.FC = () => {
               {/* Items in this order */}
               <div className="p-4 bg-[#14120F] rounded-2xl border border-[#26211B] space-y-2">
                 <span className="text-xs font-sans font-semibold uppercase tracking-wider text-[#E5C378] block">
-                  Ordered Jewels ({searchedOrder.items.length})
+                  Items ({searchedOrder.items.length})
                 </span>
                 <div className="divide-y divide-[#241F1A]">
                   {searchedOrder.items.map((item, idx) => (
@@ -186,10 +218,10 @@ export const OrderTrackingModal: React.FC = () => {
                         <img src={item.productImage} alt={item.productName} className="w-8 h-8 object-cover rounded border border-[#26211B] bg-[#181613]" />
                         <div>
                           <p className="font-serif font-medium text-[#FAF7F2]">{item.productName}</p>
-                          <p className="text-[10px] text-[#A89F91]">Qty: {item.quantity} • {item.metal || '18K Gold'}</p>
+                          <p className="text-[10px] text-[#A89F91]">Qty: {item.quantity}{item.size ? ` • ${item.size}` : ''}</p>
                         </div>
                       </div>
-                      <span className="font-semibold text-[#E5C378]">${item.total.toLocaleString()}</span>
+                      <span className="font-semibold text-[#E5C378]">{formatPrice(item.total)}</span>
                     </div>
                   ))}
                 </div>

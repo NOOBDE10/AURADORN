@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { useStore } from '../context/StoreContext';
+import { formatPrice } from '../lib/format';
 import { 
   Search, 
   ShoppingBag, 
@@ -36,14 +37,12 @@ export const Header: React.FC<HeaderProps> = ({
     settings, 
     cartSummary, 
     wishlist, 
-    user, 
     isAdmin, 
-    adminNotifications,
+    pendingOrdersCount,
     products, 
     categories,
     openCart, 
     openWishlist, 
-    openAccount, 
     openAdmin, 
     openTracking,
     openProductDetails
@@ -196,16 +195,16 @@ export const Header: React.FC<HeaderProps> = ({
           : 'bg-[#0B0A08]/95 backdrop-blur-sm border-b border-[#241F1A]'
       }`}
     >
-      {/* Top Announcement Bar - Haute Joaillerie & Code AURA */}
+      {/* Top Announcement Bar */}
       <div className="bg-[#050403] text-[#E6D4AF] py-2 px-4 text-xs font-sans tracking-widest text-center flex items-center justify-between border-b border-[#C9A25D]/25 transition-colors">
         <div className="hidden md:flex items-center gap-2 text-stone-400">
-          <span className="text-[#E5C378] text-[10px] tracking-widest uppercase font-semibold">Haute Joaillerie</span>
+          <span className="text-[#E5C378] text-[10px] tracking-widest uppercase font-semibold">{settings.brandName}</span>
           <span className="text-stone-600">·</span>
-          <span className="text-[11px] text-stone-400">Pure 18K & 22K Solid Gold</span>
+          <span className="text-[11px] text-stone-400">Artificial Jewellery</span>
         </div>
         <div className="mx-auto flex items-center gap-2 font-medium">
           <Sparkles className="w-3.5 h-3.5 text-[#E5C378] animate-pulse" />
-          <span>{settings.announcementText || '✨ Complimentary Insured White-Glove COD | Code: AA10 for 10% OFF'}</span>
+          <span>{settings.announcementText}</span>
         </div>
         <div className="hidden md:flex items-center gap-4 text-stone-300">
           <button 
@@ -381,7 +380,7 @@ export const Header: React.FC<HeaderProps> = ({
                         </div>
                         <div className="text-right shrink-0">
                           <p className="text-sm font-serif font-medium text-[#E5C378]">
-                            ${prod.price.toLocaleString()}
+                            {formatPrice(prod.price)}
                           </p>
                           {prod.originalPrice > prod.price && (
                             <span className="text-[10px] text-rose-300 bg-rose-950/80 px-1.5 py-0.5 rounded font-sans font-medium border border-rose-500/20">
@@ -394,7 +393,7 @@ export const Header: React.FC<HeaderProps> = ({
                   </div>
                 ) : (
                   <div className="p-6 text-center text-xs font-sans text-[#A89F91]">
-                    No fine jewellery pieces found matching "{localSearchQuery}". Try searching for solitaires, rings, gold, or diamond.
+                    No items found for "{localSearchQuery}". Try "earrings", "bangles" or "set".
                   </div>
                 )}
 
@@ -425,34 +424,31 @@ export const Header: React.FC<HeaderProps> = ({
               <Search className="w-5 h-5" />
             </button>
 
-            {/* Admin Vault Portal Button */}
+            {/* Admin button (admins only) */}
             {isAdmin && (
               <button
                 onClick={openAdmin}
                 className="relative p-2 rounded-full transition-all flex items-center gap-1.5 text-xs font-sans font-medium bg-[#1A1713] text-[#E6D4AF] hover:bg-[#C9A25D] hover:text-[#0B0A08] border border-[#C9A25D]/40 px-3 shadow-xs cursor-pointer active:scale-95"
-                title="Store Admin Vault Dashboard"
+                title="Admin dashboard"
               >
                 <ShieldCheck className="w-4 h-4 text-[#E5C378]" />
-                <span className="hidden sm:inline">Vault Admin</span>
-                {adminNotifications.length > 0 && (
+                <span className="hidden sm:inline">Admin</span>
+                {pendingOrdersCount > 0 && (
                   <span className="absolute -top-1 -right-1 bg-rose-600 text-white text-[10px] w-4 h-4 rounded-full flex items-center justify-center font-bold animate-bounce">
-                    {adminNotifications.length}
+                    {pendingOrdersCount}
                   </span>
                 )}
               </button>
             )}
 
-            {/* Customer Account / Profile */}
+            {/* Order tracking */}
             <button
-              onClick={openAccount}
+              onClick={() => openTracking()}
               className="p-2.5 text-[#D8CDC0] hover:text-[#E5C378] hover:bg-[#1A1713] rounded-full transition-all duration-200 relative active:scale-95 cursor-pointer"
-              aria-label="Account"
-              title="Customer Account & Orders"
+              aria-label="Track your order"
+              title="Track your order"
             >
-              <UserIcon className="w-5 h-5" />
-              {user && (
-                <span className="absolute bottom-1.5 right-1.5 w-2 h-2 bg-emerald-400 rounded-full ring-2 ring-[#0B0A08]" />
-              )}
+              <Truck className="w-5 h-5" />
             </button>
 
             {/* Wishlist Icon */}
@@ -566,7 +562,7 @@ export const Header: React.FC<HeaderProps> = ({
                         <p className="text-xs font-serif font-medium text-[#FAF7F2] truncate">{prod.name}</p>
                         <p className="text-[10px] text-[#A89F91] capitalize">{prod.category} · {prod.details.metal}</p>
                       </div>
-                      <span className="text-xs font-medium text-[#E5C378]">${prod.price.toLocaleString()}</span>
+                      <span className="text-xs font-medium text-[#E5C378]">{formatPrice(prod.price)}</span>
                     </div>
                   ))}
                 </div>
@@ -600,16 +596,18 @@ export const Header: React.FC<HeaderProps> = ({
             <span className="text-[10px] text-[#A89F91] tracking-normal font-mono">({products.length})</span>
           </button>
 
+          {isAdmin && (
           <button
             onClick={openAdmin}
             className="transition-colors py-1 cursor-pointer luxury-underline relative text-[#D8CDC0] hover:text-[#E5C378] flex items-center gap-2 group"
           >
             <ShieldCheck className="w-3.5 h-3.5 text-[#E5C378] group-hover:scale-110 transition-transform" />
             <span>Admin Panel</span>
-            {adminNotifications.length > 0 && (
+            {pendingOrdersCount > 0 && (
               <span className="w-2 h-2 rounded-full bg-rose-500 animate-pulse" />
             )}
           </button>
+          )}
         </nav>
       </div>
 
@@ -680,19 +678,6 @@ export const Header: React.FC<HeaderProps> = ({
                 <span className="flex items-center gap-2">
                   <Truck className="w-4 h-4 text-[#E5C378]" />
                   Track Existing Order
-                </span>
-                <ArrowRight className="w-4 h-4 text-stone-500" />
-              </button>
-              <button
-                onClick={() => {
-                  openAccount();
-                  setIsMobileMenuOpen(false);
-                }}
-                className="w-full flex items-center justify-between px-3 py-2.5 text-sm font-medium text-[#FAF7F2] hover:bg-[#181613] hover:text-[#E5C378] rounded-lg cursor-pointer transition-colors"
-              >
-                <span className="flex items-center gap-2">
-                  <UserIcon className="w-4 h-4 text-[#E5C378]" />
-                  Sign In / Patron Lounge
                 </span>
                 <ArrowRight className="w-4 h-4 text-stone-500" />
               </button>

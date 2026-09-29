@@ -1,5 +1,6 @@
 import React from 'react';
 import { useStore } from '../context/StoreContext';
+import { formatPrice } from '../lib/format';
 import { X, Heart, ShoppingBag, Trash2, ArrowRight } from 'lucide-react';
 
 export const WishlistDrawer: React.FC = () => {
@@ -31,7 +32,7 @@ export const WishlistDrawer: React.FC = () => {
             <div className="w-9 h-9 rounded-full overflow-hidden border border-[#C9A25D] bg-[#0B0A08] shrink-0 p-0.5 shadow-sm">
               <img 
                 src="/logo.png" 
-                alt="AA JEWELLERS" 
+                alt="Aura Adorn logo" 
                 onError={(e) => { (e.currentTarget as HTMLImageElement).src = '/icon.svg'; }} 
                 className="w-full h-full object-cover rounded-full" 
               />
@@ -59,7 +60,7 @@ export const WishlistDrawer: React.FC = () => {
               </div>
               <h3 className="font-serif text-xl text-[#FAF7F2]">Your wishlist is empty</h3>
               <p className="text-xs font-sans text-[#A89F91] max-w-xs">
-                Save your cherished diamond rings and heritage necklaces to track availability or purchase later.
+                Tap the heart on any item to save it here for later.
               </p>
               <button
                 onClick={closeWishlist}
@@ -106,7 +107,7 @@ export const WishlistDrawer: React.FC = () => {
                     </div>
                     <p className="text-xs text-[#A89F91] font-sans truncate">{product.details.metal}</p>
                     <p className="font-serif text-base font-semibold text-[#E5C378] mt-1">
-                      ${product.price.toLocaleString()}
+                      {formatPrice(product.price)}
                     </p>
                   </div>
 

@@ -1,22 +1,26 @@
-import React, { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react';
-import { onAuthStateChanged, signInWithPopup, GoogleAuthProvider, signOut, User } from 'firebase/auth';
-import { auth, testFirestoreConnection } from '../firebase/config';
+import React, { createContext, useContext, useState, useEffect, useCallback, useMemo, ReactNode } from 'react';
+import { onAuthStateChanged, signInWithEmailAndPassword, signOut, User } from 'firebase/auth';
+import { auth } from '../firebase/config';
 import { Product, Category, CartItem, Order, OrderStatus, Review, StoreSettings } from '../types';
-import { 
-  fetchProducts, 
-  fetchCategories, 
-  fetchStoreSettings, 
-  fetchAllOrders, 
-  fetchOrderById,
-  fetchReviews, 
+import {
+  checkIsAdmin,
+  fetchProducts,
+  fetchCategories,
+  fetchStoreSettings,
+  fetchApprovedReviews,
+  fetchAllReviews,
   placeOrder,
+  trackOrder,
+  PlaceOrderRequest,
+  subscribeToOrders,
+  updateOrder,
   saveProduct,
   removeProduct,
+  saveCategory,
+  removeCategory,
   saveStoreSettings,
-  updateOrderStatus as serviceUpdateOrderStatus,
-  OrderNotificationPayload 
 } from '../services/storeService';
-import { INITIAL_SETTINGS, INITIAL_PRODUCTS, INITIAL_CATEGORIES } from '../data/initialData';
+import { INITIAL_SETTINGS, INITIAL_CATEGORIES } from '../data/initialData';
 
 interface Toast {
   id: string;
@@ -34,7 +38,11 @@ interface CartSummary {
 
 interface StoreContextType {
   isLoading: boolean;
+  loadError: string | null;
+  /** Products visible to customers (not drafts). */
   products: Product[];
+  /** Every product including drafts (admin). */
+  allProducts: Product[];
   categories: Category[];
   settings: StoreSettings;
   cart: CartItem[];
@@ -43,55 +51,40 @@ interface StoreContextType {
   reviews: Review[];
   user: User | null;
   isAdmin: boolean;
-  isAdminMode: boolean;
-  adminNotifications: OrderNotificationPayload[];
-  appliedCoupon: { code: string; percent: number } | null;
+  pendingOrdersCount: number;
   cartSummary: CartSummary;
   toasts: Toast[];
 
-  // Modals & Navigation
   isCartOpen: boolean;
   isWishlistOpen: boolean;
   isCheckoutOpen: boolean;
   isTrackingOpen: boolean;
-  isAccountOpen: boolean;
   isAdminOpen: boolean;
   selectedProduct: Product | null;
   quickViewProduct: Product | null;
-  activeTrackingId: string | null;
   trackingOrderId: string | null;
+  trackingPhone: string | null;
 
-  // Admin & Auth
-  adminUser: { email: string; name?: string } | null;
-  adminLogin: (email: string, password?: string) => Promise<void>;
-  adminLogout: () => void;
-  loginUser: (email: string, password?: string) => Promise<void>;
-  registerUser: (email: string, password: string, name: string) => Promise<void>;
-  logoutUser: () => Promise<void>;
+  adminLogin: (email: string, password: string) => Promise<void>;
+  adminLogout: () => Promise<void>;
   updateOrderStatus: (orderId: string, status: OrderStatus, trackingNumber?: string, courierName?: string) => Promise<void>;
   handleSaveProduct: (product: Partial<Product>) => Promise<void>;
   handleDeleteProduct: (productId: string) => Promise<void>;
+  handleSaveCategory: (category: Category) => Promise<void>;
+  handleDeleteCategory: (categoryId: string) => Promise<void>;
   handleUpdateSettings: (settings: StoreSettings) => Promise<void>;
-  clearAdminNotifications: () => void;
 
-  // Actions
   addToCart: (product: Product, quantity?: number, selectedMetal?: string, selectedSize?: string) => void;
-  removeFromCart: (productId: string) => void;
-  updateCartQuantity: (productId: string, delta: number) => void;
+  removeFromCart: (productId: string, selectedSize?: string) => void;
+  updateCartQuantity: (productId: string, delta: number, selectedSize?: string) => void;
   clearCart: () => void;
   toggleWishlist: (productId: string) => void;
   isInWishlist: (productId: string) => boolean;
-  applyCouponCode: (code: string) => boolean;
-  removeCoupon: () => void;
-  handlePlaceOrder: (orderData: Omit<Order, 'id' | 'createdAt' | 'status' | 'trackingUpdates'>) => Promise<Order>;
+  handlePlaceOrder: (request: PlaceOrderRequest) => Promise<Order>;
   showToast: (message: string, type?: 'success' | 'info' | 'gold') => void;
-  signInGoogle: () => Promise<void>;
-  logout: () => Promise<void>;
-  toggleAdminMode: () => void;
   refreshData: () => Promise<void>;
-  fetchOrder: (orderId: string) => Promise<Order | null>;
+  fetchOrder: (orderId: string, phone: string) => Promise<Order | null>;
 
-  // Product Comparison Feature
   compareList: Product[];
   addToCompare: (product: Product) => boolean;
   removeFromCompare: (productId: string) => void;
@@ -101,515 +94,333 @@ interface StoreContextType {
   openCompareModal: () => void;
   closeCompareModal: () => void;
 
-  // Open/Close Modals
   openCart: () => void;
   closeCart: () => void;
   openWishlist: () => void;
   closeWishlist: () => void;
   openCheckout: () => void;
   closeCheckout: () => void;
-  openTracking: (orderId?: string) => void;
+  openTracking: (orderId?: string, phone?: string) => void;
   closeTracking: () => void;
-  openAccount: () => void;
-  closeAccount: () => void;
   openAdmin: () => void;
   closeAdmin: () => void;
   openProductDetails: (product: Product) => void;
   closeProductDetails: () => void;
   openQuickView: (product: Product) => void;
   closeQuickView: () => void;
-  dismissAdminNotification: (index: number) => void;
 }
 
 const StoreContext = createContext<StoreContextType | undefined>(undefined);
 
-const LOCAL_CART_KEY = 'aura_carat_cart';
-const LOCAL_WISHLIST_KEY = 'aura_carat_wishlist';
-const LOCAL_COMPARE_KEY = 'aura_carat_compare';
+const LOCAL_CART_KEY = 'aura_adorn_cart';
+const LOCAL_WISHLIST_KEY = 'aura_adorn_wishlist';
+const LOCAL_COMPARE_KEY = 'aura_adorn_compare';
+
+function readLocal<T>(key: string, fallback: T): T {
+  try {
+    const saved = localStorage.getItem(key);
+    return saved ? JSON.parse(saved) : fallback;
+  } catch {
+    return fallback;
+  }
+}
+
+function writeLocal(key: string, value: unknown) {
+  try {
+    localStorage.setItem(key, JSON.stringify(value));
+  } catch {
+    // Storage unavailable (private mode); cart simply won't persist.
+  }
+}
+
+const sameLine = (item: CartItem, productId: string, size?: string) =>
+  item.product.id === productId && (size === undefined || item.selectedSize === size);
 
 export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
-  const [isLoading, setIsLoading] = useState<boolean>(true);
-  const [products, setProducts] = useState<Product[]>(INITIAL_PRODUCTS);
+  const [isLoading, setIsLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const [allProducts, setAllProducts] = useState<Product[]>([]);
   const [categories, setCategories] = useState<Category[]>(INITIAL_CATEGORIES);
   const [settings, setSettings] = useState<StoreSettings>(INITIAL_SETTINGS);
   const [orders, setOrders] = useState<Order[]>([]);
   const [reviews, setReviews] = useState<Review[]>([]);
-  const [cart, setCart] = useState<CartItem[]>(() => {
-    try {
-      const saved = localStorage.getItem(LOCAL_CART_KEY);
-      return saved ? JSON.parse(saved) : [];
-    } catch {
-      return [];
-    }
-  });
-  const [wishlist, setWishlist] = useState<string[]>(() => {
-    try {
-      const saved = localStorage.getItem(LOCAL_WISHLIST_KEY);
-      return saved ? JSON.parse(saved) : [];
-    } catch {
-      return [];
-    }
-  });
-  const [compareList, setCompareList] = useState<Product[]>(() => {
-    try {
-      const saved = localStorage.getItem(LOCAL_COMPARE_KEY);
-      return saved ? JSON.parse(saved) : [];
-    } catch {
-      return [];
-    }
-  });
+  const [cart, setCart] = useState<CartItem[]>(() => readLocal(LOCAL_CART_KEY, []));
+  const [wishlist, setWishlist] = useState<string[]>(() => readLocal(LOCAL_WISHLIST_KEY, []));
+  const [compareList, setCompareList] = useState<Product[]>(() => readLocal(LOCAL_COMPARE_KEY, []));
 
   const [user, setUser] = useState<User | null>(null);
-  const [isAdminMode, setIsAdminMode] = useState<boolean>(false);
-  const [appliedCoupon, setAppliedCoupon] = useState<{ code: string; percent: number } | null>(null);
+  const [isAdmin, setIsAdmin] = useState(false);
   const [toasts, setToasts] = useState<Toast[]>([]);
-  const [adminNotifications, setAdminNotifications] = useState<OrderNotificationPayload[]>(() => {
-    try {
-      const saved = localStorage.getItem('aura_carat_admin_notifications');
-      return saved ? JSON.parse(saved) : [];
-    } catch {
-      return [];
-    }
-  });
 
-  // Modals state
   const [isCartOpen, setIsCartOpen] = useState(false);
   const [isWishlistOpen, setIsWishlistOpen] = useState(false);
   const [isCheckoutOpen, setIsCheckoutOpen] = useState(false);
   const [isTrackingOpen, setIsTrackingOpen] = useState(false);
-  const [isAccountOpen, setIsAccountOpen] = useState(false);
   const [isAdminOpen, setIsAdminOpen] = useState(false);
   const [isCompareModalOpen, setIsCompareModalOpen] = useState(false);
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [quickViewProduct, setQuickViewProduct] = useState<Product | null>(null);
-  const [activeTrackingId, setActiveTrackingId] = useState<string | null>(null);
+  const [trackingOrderId, setTrackingOrderId] = useState<string | null>(null);
+  const [trackingPhone, setTrackingPhone] = useState<string | null>(null);
 
   const showToast = useCallback((message: string, type: 'success' | 'info' | 'gold' = 'gold') => {
     const id = `toast-${Date.now()}-${Math.random()}`;
     setToasts(prev => [...prev, { id, message, type }]);
-    setTimeout(() => {
-      setToasts(prev => prev.filter(t => t.id !== id));
-    }, 4000);
+    setTimeout(() => setToasts(prev => prev.filter(t => t.id !== id)), 4000);
   }, []);
 
-  // Sync Cart to LocalStorage
-  useEffect(() => {
-    try {
-      localStorage.setItem(LOCAL_CART_KEY, JSON.stringify(cart));
-    } catch (e) {
-      console.error(e);
-    }
-  }, [cart]);
+  useEffect(() => writeLocal(LOCAL_CART_KEY, cart), [cart]);
+  useEffect(() => writeLocal(LOCAL_WISHLIST_KEY, wishlist), [wishlist]);
+  useEffect(() => writeLocal(LOCAL_COMPARE_KEY, compareList), [compareList]);
 
-  // Sync Wishlist to LocalStorage
+  // Auth: admin rights come from the Firestore admins/{uid} document (also enforced by security rules).
   useEffect(() => {
-    try {
-      localStorage.setItem(LOCAL_WISHLIST_KEY, JSON.stringify(wishlist));
-    } catch (e) {
-      console.error(e);
-    }
-  }, [wishlist]);
-
-  // Sync Comparison List to LocalStorage
-  useEffect(() => {
-    try {
-      localStorage.setItem(LOCAL_COMPARE_KEY, JSON.stringify(compareList));
-    } catch (e) {
-      console.error(e);
-    }
-  }, [compareList]);
-
-  // Firebase Auth listener
-  useEffect(() => {
-    testFirestoreConnection();
-    const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
+    return onAuthStateChanged(auth, async currentUser => {
       setUser(currentUser);
-      if (
-        currentUser?.email === 'auraadornjewellers@gmail.com' ||
-        currentUser?.email === 'nirbanmubashirzubair@gmail.com'
-      ) {
-        setIsAdminMode(true);
-      }
+      setIsAdmin(currentUser ? await checkIsAdmin(currentUser.uid) : false);
     });
-    return () => unsubscribe();
   }, []);
 
-  const [adminUser, setAdminUser] = useState<{ email: string; name?: string } | null>(() => {
+  const loadData = useCallback(async () => {
+    setIsLoading(true);
+    setLoadError(null);
     try {
-      const saved = localStorage.getItem('aura_carat_admin_user');
-      return saved ? JSON.parse(saved) : null;
-    } catch {
-      return null;
-    }
-  });
-
-  // Admin status check (Owner email or toggle)
-  const isAdmin = 
-    (user?.email === 'auraadornjewellers@gmail.com') ||
-    (user?.email === 'nirbanmubashirzubair@gmail.com') ||
-    (adminUser?.email === 'auraadornjewellers@gmail.com') ||
-    (adminUser?.email === 'nirbanmubashirzubair@gmail.com') ||
-    isAdminMode;
-  const isOwnerAuthenticated = Boolean(
-    user && (user.email === 'auraadornjewellers@gmail.com' || user.email === 'nirbanmubashirzubair@gmail.com')
-  );
-
-  const loadData = useCallback(async (hasAdmin = false) => {
-    try {
-      setIsLoading(true);
-      const [prods, cats, sets, ords, revs] = await Promise.all([
-        fetchProducts(),
-        fetchCategories(),
-        fetchStoreSettings(),
-        fetchAllOrders(hasAdmin),
-        fetchReviews()
-      ]);
-      setProducts(prods);
+      const [prods, cats, sets] = await Promise.all([fetchProducts(), fetchCategories(), fetchStoreSettings()]);
+      setAllProducts(prods);
       setCategories(cats);
       setSettings(sets);
-      setOrders(ords);
-      setReviews(revs);
     } catch (e) {
-      console.error('Failed loading initial store data', e);
+      console.error('Failed loading store data', e);
+      setLoadError('We could not load the store right now. Please refresh the page.');
     } finally {
       setIsLoading(false);
     }
-  }, []);
+    try {
+      setReviews(isAdmin ? await fetchAllReviews() : await fetchApprovedReviews());
+    } catch (e) {
+      console.warn('Reviews unavailable', e);
+    }
+  }, [isAdmin]);
 
   useEffect(() => {
-    loadData(isOwnerAuthenticated);
-  }, [loadData, isOwnerAuthenticated]);
+    loadData();
+  }, [loadData]);
 
-  // Cart operations
-  const addToCart = useCallback((product: Product, quantity = 1, selectedMetal?: string, selectedSize?: string) => {
+  // Live order list for admins only.
+  useEffect(() => {
+    if (!isAdmin) {
+      setOrders([]);
+      return;
+    }
+    return subscribeToOrders(setOrders, e => {
+      console.error('Order subscription failed', e);
+      showToast('Could not load orders. Check your connection.', 'info');
+    });
+  }, [isAdmin, showToast]);
+
+  const products = useMemo(() => allProducts.filter(p => p.status !== 'draft'), [allProducts]);
+
+  // Keep cart items in sync with the latest product data (price, stock, removed products).
+  useEffect(() => {
+    if (isLoading || loadError) return;
     setCart(prev => {
-      const existingIndex = prev.findIndex(item => 
-        item.product.id === product.id && 
-        item.selectedMetal === selectedMetal && 
-        item.selectedSize === selectedSize
-      );
+      const next = prev
+        .map(item => {
+          const fresh = products.find(p => p.id === item.product.id);
+          return fresh ? { ...item, product: fresh, quantity: Math.min(item.quantity, fresh.stock) } : null;
+        })
+        .filter((item): item is CartItem => Boolean(item && item.quantity > 0));
+      return JSON.stringify(next) === JSON.stringify(prev) ? prev : next;
+    });
+  }, [products, isLoading, loadError]);
 
-      if (existingIndex >= 0) {
-        const next = [...prev];
-        const newQty = next[existingIndex].quantity + quantity;
+  // ---------------- Cart ----------------
+
+  const addToCart = useCallback((product: Product, quantity = 1, selectedMetal?: string, selectedSize?: string) => {
+    if (product.stock <= 0 || product.status === 'out_of_stock') {
+      showToast('Sorry, this item is out of stock.', 'info');
+      return;
+    }
+    if ((product.options?.length || 0) > 0 && !selectedSize) {
+      setSelectedProduct(product);
+      showToast(`Please choose a ${(product.optionLabel || 'size').toLowerCase()} first.`, 'info');
+      return;
+    }
+    const size = selectedSize || '';
+    let added = true;
+    setCart(prev => {
+      const idx = prev.findIndex(item => item.product.id === product.id && (item.selectedSize || '') === size);
+      if (idx >= 0) {
+        const newQty = prev[idx].quantity + quantity;
         if (newQty > product.stock) {
-          showToast(`Only ${product.stock} pieces available in boutique vault.`, 'info');
+          added = false;
           return prev;
         }
-        next[existingIndex].quantity = newQty;
+        const next = [...prev];
+        next[idx] = { ...next[idx], quantity: newQty };
         return next;
-      } else {
-        return [...prev, {
-          product,
-          quantity: Math.min(quantity, product.stock),
-          selectedMetal: selectedMetal || product.details.metal,
-          selectedSize: selectedSize || 'Standard'
-        }];
       }
+      return [...prev, {
+        product,
+        quantity: Math.min(quantity, product.stock),
+        selectedMetal: selectedMetal || product.details?.metal,
+        selectedSize: size || undefined,
+      }];
     });
-
-    showToast(`Added "${product.name}" to your shopping bag.`, 'gold');
+    if (added) showToast(`Added "${product.name}" to your bag.`, 'gold');
+    else showToast(`Only ${product.stock} available.`, 'info');
   }, [showToast]);
 
-  const removeFromCart = useCallback((productId: string) => {
-    setCart(prev => prev.filter(item => item.product.id !== productId));
+  const removeFromCart = useCallback((productId: string, selectedSize?: string) => {
+    setCart(prev => prev.filter(item => !sameLine(item, productId, selectedSize)));
     showToast('Item removed from your bag.', 'info');
   }, [showToast]);
 
-  const updateCartQuantity = useCallback((productId: string, delta: number) => {
-    setCart(prev => {
-      return prev.map(item => {
-        if (item.product.id === productId) {
-          const newQty = item.quantity + delta;
-          if (newQty <= 0) return null;
-          if (newQty > item.product.stock) {
-            showToast(`Boutique vault cap reached (${item.product.stock} available).`, 'info');
-            return item;
-          }
-          return { ...item, quantity: newQty };
-        }
-        return item;
-      }).filter(Boolean) as CartItem[];
-    });
-  }, [showToast]);
-
-  const clearCart = useCallback(() => {
-    setCart([]);
+  const updateCartQuantity = useCallback((productId: string, delta: number, selectedSize?: string) => {
+    setCart(prev => prev
+      .map(item => {
+        if (!sameLine(item, productId, selectedSize)) return item;
+        const newQty = item.quantity + delta;
+        if (newQty <= 0) return null;
+        if (newQty > item.product.stock) return item;
+        return { ...item, quantity: newQty };
+      })
+      .filter((item): item is CartItem => item !== null));
   }, []);
+
+  const clearCart = useCallback(() => setCart([]), []);
 
   const toggleWishlist = useCallback((productId: string) => {
     setWishlist(prev => {
-      const exists = prev.includes(productId);
-      if (exists) {
-        showToast('Removed from your private wishlist.', 'info');
+      if (prev.includes(productId)) {
+        showToast('Removed from your wishlist.', 'info');
         return prev.filter(id => id !== productId);
-      } else {
-        showToast('Saved to your private wishlist.', 'gold');
-        return [...prev, productId];
       }
+      showToast('Saved to your wishlist.', 'gold');
+      return [...prev, productId];
     });
   }, [showToast]);
 
-  const isInWishlist = useCallback((productId: string) => {
-    return wishlist.includes(productId);
-  }, [wishlist]);
+  const isInWishlist = useCallback((productId: string) => wishlist.includes(productId), [wishlist]);
 
-  // Product Comparison Handlers
+  // ---------------- Compare ----------------
+
   const addToCompare = useCallback((product: Product): boolean => {
-    let added = false;
-    setCompareList(prev => {
-      if (prev.some(p => p.id === product.id)) {
-        showToast(`"${product.name}" is already in comparison.`, 'info');
-        return prev;
-      }
-      if (prev.length >= 4) {
-        showToast('Maximum 4 pieces can be compared side-by-side.', 'info');
-        return prev;
-      }
-      added = true;
-      showToast(`Added "${product.name}" to side-by-side comparison.`, 'gold');
-      return [...prev, product];
-    });
-    return added;
-  }, [showToast]);
+    if (compareList.some(p => p.id === product.id)) {
+      showToast(`"${product.name}" is already in comparison.`, 'info');
+      return false;
+    }
+    if (compareList.length >= 4) {
+      showToast('You can compare up to 4 items.', 'info');
+      return false;
+    }
+    setCompareList(prev => [...prev, product]);
+    showToast(`Added "${product.name}" to comparison.`, 'gold');
+    return true;
+  }, [compareList, showToast]);
 
   const removeFromCompare = useCallback((productId: string) => {
     setCompareList(prev => prev.filter(p => p.id !== productId));
-    showToast('Removed piece from comparison.', 'info');
-  }, [showToast]);
-
-  const clearCompare = useCallback(() => {
-    setCompareList([]);
-    showToast('Comparison list cleared.', 'info');
-  }, [showToast]);
-
-  const isInCompare = useCallback((productId: string) => {
-    return compareList.some(p => p.id === productId);
-  }, [compareList]);
-
-  const openCompareModal = useCallback(() => {
-    setIsCompareModalOpen(true);
   }, []);
 
-  const closeCompareModal = useCallback(() => {
-    setIsCompareModalOpen(false);
-  }, []);
+  const clearCompare = useCallback(() => setCompareList([]), []);
+  const isInCompare = useCallback((productId: string) => compareList.some(p => p.id === productId), [compareList]);
 
-  const applyCouponCode = useCallback((code: string) => {
-    const clean = code.trim().toUpperCase();
-    if (clean === 'AA10' || clean === 'AA' || clean === 'AAJEWELERS' || clean === 'AURA' || clean === 'LUXE10') {
-      setAppliedCoupon({ code: 'AA10', percent: 10 });
-      showToast('Exclusive 10% AA JEWELERS Privilege applied to your order!', 'gold');
-      return true;
-    } else if (clean === 'DIAMOND15') {
-      setAppliedCoupon({ code: 'DIAMOND15', percent: 15 });
-      showToast('15% Diamond Collector discount applied!', 'gold');
-      return true;
-    } else {
-      showToast('Invalid promotion code. Try code "AA10"', 'info');
-      return false;
-    }
-  }, [showToast]);
+  // ---------------- Totals (display only; the server recalculates on checkout) ----------------
 
-  const removeCoupon = useCallback(() => {
-    setAppliedCoupon(null);
-    showToast('Promotion code removed.', 'info');
-  }, [showToast]);
-
-  // Cart summary calculations
-  const cartSummary: CartSummary = (() => {
+  const cartSummary: CartSummary = useMemo(() => {
     const itemCount = cart.reduce((sum, i) => sum + i.quantity, 0);
-    const subtotal = cart.reduce((sum, i) => sum + (i.product.price * i.quantity), 0);
-    const discount = appliedCoupon ? Math.round((subtotal * appliedCoupon.percent) / 100) : 0;
-    const delivery = subtotal >= settings.freeDeliveryThreshold || subtotal === 0 ? 0 : settings.deliveryCharge;
-    const total = Math.max(0, subtotal - discount + delivery);
+    const subtotal = cart.reduce((sum, i) => sum + i.product.price * i.quantity, 0);
+    const freeOver = settings.freeDeliveryThreshold || 0;
+    const delivery = subtotal === 0 || (freeOver > 0 && subtotal >= freeOver) ? 0 : settings.deliveryCharge;
+    return { subtotal, discount: 0, delivery, total: subtotal + delivery, itemCount };
+  }, [cart, settings.deliveryCharge, settings.freeDeliveryThreshold]);
 
-    return { subtotal, discount, delivery, total, itemCount };
-  })();
-
-  const handlePlaceOrder = async (orderData: Omit<Order, 'id' | 'createdAt' | 'status' | 'trackingUpdates'>): Promise<Order> => {
-    const newOrder = await placeOrder(orderData);
-    setOrders(prev => [newOrder, ...prev]);
+  const handlePlaceOrder = async (request: PlaceOrderRequest): Promise<Order> => {
+    const newOrder = await placeOrder(request);
     clearCart();
-    setAppliedCoupon(null);
-    showToast(`Order #${newOrder.id} placed successfully!`, 'gold');
-
-    // Update notifications in context
-    try {
-      const saved = localStorage.getItem('aura_carat_admin_notifications');
-      if (saved) setAdminNotifications(JSON.parse(saved));
-    } catch (e) {
-      console.error(e);
-    }
-
+    showToast(`Order ${newOrder.id} placed successfully!`, 'gold');
+    loadData(); // refresh stock counts
     return newOrder;
   };
 
-  const signInGoogle = async () => {
-    try {
-      const provider = new GoogleAuthProvider();
-      const res = await signInWithPopup(auth, provider);
-      showToast(`Welcome back, ${res.user.displayName || 'Esteemed Patron'}!`, 'gold');
-      if (res.user.email === 'auraadornjewellers@gmail.com' || res.user.email === 'nirbanmubashirzubair@gmail.com') {
-        setIsAdminMode(true);
-        const adm = { email: res.user.email, name: res.user.displayName || 'AA JEWELERS Owner' };
-        setAdminUser(adm);
-        localStorage.setItem('aura_carat_admin_user', JSON.stringify(adm));
-        showToast('Vault Owner Authenticated! Cloud Sync Active.', 'gold');
-      }
-    } catch (error: any) {
-      console.error('Google Sign In failed:', error);
-      showToast(error.message || 'Authentication error', 'info');
-    }
-  };
+  // ---------------- Admin ----------------
 
-  const logout = async () => {
+  const adminLogin = async (email: string, password: string) => {
+    let cred;
     try {
+      cred = await signInWithEmailAndPassword(auth, email.trim(), password);
+    } catch {
+      throw new Error('Incorrect email or password.');
+    }
+    const ok = await checkIsAdmin(cred.user.uid);
+    if (!ok) {
       await signOut(auth);
-      setAdminUser(null);
-      setIsAdminMode(false);
-      localStorage.removeItem('aura_carat_admin_user');
-      showToast('You have securely signed out.', 'info');
-    } catch (e) {
-      console.error(e);
+      throw new Error('This account does not have admin access.');
     }
+    setIsAdmin(true);
+    showToast('Signed in to the admin panel.', 'gold');
   };
 
-  const toggleAdminMode = () => {
-    setIsAdminMode(prev => {
-      const next = !prev;
-      showToast(next ? 'Administrator Mode Activated' : 'Customer Mode Activated', 'gold');
-      return next;
-    });
-  };
-
-  const dismissAdminNotification = (index: number) => {
-    setAdminNotifications(prev => {
-      const next = prev.filter((_, i) => i !== index);
-      try {
-        localStorage.setItem('aura_carat_admin_notifications', JSON.stringify(next));
-      } catch {}
-      return next;
-    });
-  };
-
-  const adminLogin = async (emailOrId: string, password?: string) => {
-    const cleanId = emailOrId.trim().toLowerCase();
-    const cleanPass = (password || '').trim();
-
-    const isAdminId = 
-      cleanId === 'auraadornjewellers@gmail.com' ||
-      cleanId === 'nirbanmubashirzubair@gmail.com' ||
-      cleanId === 'admin' ||
-      cleanId === 'owner' ||
-      cleanId === 'admin@aajewelers.com' ||
-      cleanId === 'admin@auraadorn.com';
-
-    if (isAdminId) {
-      // Validate password (support admin123, aura123, aajewelers, admin, or any valid password)
-      const validPasswords = ['admin123', 'aura123', 'aajewelers', 'admin', 'auraadorn', '123456'];
-      if (!cleanPass || (!validPasswords.includes(cleanPass) && cleanPass.length < 4)) {
-        throw new Error('Incorrect password. Please enter the valid admin password (e.g. admin123).');
-      }
-
-      const adm = { email: cleanId.includes('@') ? cleanId : 'auraadornjewellers@gmail.com', name: 'AA JEWELERS Owner' };
-      setAdminUser(adm);
-      setIsAdminMode(true);
-      localStorage.setItem('aura_carat_admin_user', JSON.stringify(adm));
-      showToast('Atelier Owner Authenticated! Opening Admin Vault Panel...', 'gold');
-      setIsAccountOpen(false);
-      setIsAdminOpen(true);
-      return;
-    }
-
-    throw new Error('Unauthorized ID. Please enter valid admin credentials.');
-  };
-
-  const adminLogout = () => {
-    setAdminUser(null);
-    setIsAdminMode(false);
-    localStorage.removeItem('aura_carat_admin_user');
-    showToast('Administrator session ended', 'info');
-  };
-
-  const loginUser = async (emailOrId: string, password?: string) => {
-    const clean = emailOrId.trim().toLowerCase();
-    const isAdminId = 
-      clean === 'auraadornjewellers@gmail.com' ||
-      clean === 'nirbanmubashirzubair@gmail.com' || 
-      clean === 'admin' || 
-      clean === 'owner' || 
-      clean === 'admin@aajewelers.com' ||
-      clean === 'admin@auraadorn.com';
-
-    if (isAdminId) {
-      await adminLogin(emailOrId, password);
-      return;
-    }
-
-    // Normal customer patron login
-    showToast(`Welcome back, ${emailOrId}`, 'gold');
-    setIsAccountOpen(false);
-  };
-
-  const registerUser = async (email: string, password: string, name: string) => {
-    showToast(`VIP Patron Account created for ${name}`, 'gold');
-  };
-
-  const logoutUser = async () => {
-    await logout();
+  const adminLogout = async () => {
+    await signOut(auth);
+    setIsAdmin(false);
+    showToast('Signed out.', 'info');
   };
 
   const updateOrderStatus = async (orderId: string, status: OrderStatus, trackingNumber?: string, courierName?: string) => {
-    await serviceUpdateOrderStatus(orderId, status);
-    setOrders(prev => prev.map(o => o.id === orderId ? { 
-      ...o, 
-      status, 
-      orderStatus: status,
-      ...(trackingNumber !== undefined ? { trackingNumber } : {}),
-      ...(courierName !== undefined ? { courierName } : {})
-    } : o));
-    showToast(`Order #${orderId} updated to ${status.toUpperCase()}`, 'gold');
+    try {
+      await updateOrder(orderId, { status, trackingNumber, courierName });
+      showToast(`Order ${orderId} updated to ${status.toUpperCase()}`, 'gold');
+    } catch (e) {
+      console.error(e);
+      showToast('Could not update the order. Please try again.', 'info');
+      throw e;
+    }
   };
 
   const handleSaveProduct = async (productData: Partial<Product>) => {
-    const price = productData.price || 999;
-    const origPrice = productData.originalPrice || price;
-    const discountPct = origPrice > price ? Math.round(((origPrice - price) / origPrice) * 100) : 0;
-
+    const price = Number(productData.price) || 0;
+    const origPrice = Number(productData.originalPrice) || price;
     const fullProduct: Product = {
-      id: productData.id || `ac-${Date.now()}`,
-      name: productData.name || 'Bespoke Creation',
-      description: productData.description || 'Artisanal high-carat jewellery handcrafted with rare diamonds.',
-      price: price,
+      id: productData.id || `p-${Date.now().toString(36)}`,
+      name: (productData.name || '').trim(),
+      description: productData.description || '',
+      price,
       originalPrice: origPrice,
-      discountPercentage: discountPct,
-      category: productData.category || 'rings',
-      subCategory: productData.subCategory || 'Solitaire',
-      stock: productData.stock ?? 10,
+      discountPercentage: origPrice > price ? Math.round(((origPrice - price) / origPrice) * 100) : 0,
+      category: productData.category || categories[0]?.slug || '',
+      subCategory: productData.subCategory || '',
+      stock: Math.max(0, Number(productData.stock ?? 0)),
       status: productData.status || 'active',
       isFeatured: productData.isFeatured ?? false,
       isNewArrival: productData.isNewArrival ?? true,
       isBestSeller: productData.isBestSeller ?? false,
-      images: productData.images && productData.images.length > 0 
-        ? productData.images 
-        : ['https://images.unsplash.com/photo-1605100804763-247f67b3557e?auto=format&fit=crop&w=800&q=80'],
-      rating: productData.rating || 5.0,
-      reviewCount: productData.reviewCount || 1,
-      details: productData.details || {
-        metal: '18K Solid Gold',
-        karat: '18K',
-        weight: '4.50 grams',
-        stone: 'VVS1 Natural Diamond',
-        gemstoneWeight: '1.20 ct',
-        certification: 'GIA & Hallmark Certified',
-        purity: '750 Purity (18K)'
+      loyaltyBadge: productData.loyaltyBadge,
+      options: (productData.options || []).map(o => o.trim()).filter(Boolean),
+      optionLabel: productData.optionLabel || '',
+      images: (productData.images || []).filter(Boolean),
+      rating: productData.rating || 0,
+      reviewCount: productData.reviewCount || 0,
+      details: {
+        metal: productData.details?.metal || '',
+        stone: productData.details?.stone || '',
+        color: productData.details?.color || '',
+        weight: productData.details?.weight || '',
+        dimensions: productData.details?.dimensions || '',
+        includes: productData.details?.includes || '',
       },
-      tags: productData.tags || ['luxury', 'handcrafted'],
-      createdAt: productData.createdAt || new Date().toISOString()
+      tags: productData.tags || [],
+      createdAt: productData.createdAt || new Date().toISOString(),
     };
-    await saveProduct(fullProduct);
-    setProducts(prev => {
+    try {
+      await saveProduct(fullProduct);
+    } catch (e) {
+      console.error(e);
+      showToast('Could not save the product. Are you signed in as admin?', 'info');
+      throw e;
+    }
+    setAllProducts(prev => {
       const idx = prev.findIndex(p => p.id === fullProduct.id);
       if (idx >= 0) {
         const copy = [...prev];
@@ -618,32 +429,70 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
       }
       return [fullProduct, ...prev];
     });
-    showToast(`Piece "${fullProduct.name}" saved to atelier vault.`, 'gold');
+    showToast(`"${fullProduct.name}" saved.`, 'gold');
   };
 
   const handleDeleteProduct = async (productId: string) => {
-    await removeProduct(productId);
-    setProducts(prev => prev.filter(p => p.id !== productId));
-    showToast('Piece removed from active catalogue.', 'info');
+    try {
+      await removeProduct(productId);
+    } catch (e) {
+      showToast('Could not delete the product.', 'info');
+      throw e;
+    }
+    setAllProducts(prev => prev.filter(p => p.id !== productId));
+    showToast('Product deleted.', 'info');
+  };
+
+  const handleSaveCategory = async (category: Category) => {
+    try {
+      await saveCategory(category);
+    } catch (e) {
+      showToast('Could not save the category.', 'info');
+      throw e;
+    }
+    setCategories(prev => {
+      const idx = prev.findIndex(c => c.id === category.id);
+      if (idx >= 0) {
+        const copy = [...prev];
+        copy[idx] = category;
+        return copy;
+      }
+      return [...prev, category];
+    });
+    showToast(`Category "${category.name}" saved.`, 'gold');
+  };
+
+  const handleDeleteCategory = async (categoryId: string) => {
+    try {
+      await removeCategory(categoryId);
+    } catch (e) {
+      showToast('Could not delete the category.', 'info');
+      throw e;
+    }
+    setCategories(prev => prev.filter(c => c.id !== categoryId));
+    showToast('Category deleted.', 'info');
   };
 
   const handleUpdateSettings = async (newSettings: StoreSettings) => {
-    await saveStoreSettings(newSettings);
+    try {
+      await saveStoreSettings(newSettings);
+    } catch (e) {
+      showToast('Could not save settings.', 'info');
+      throw e;
+    }
     setSettings(newSettings);
-    showToast('Boutique brand preferences saved.', 'gold');
+    showToast('Settings saved.', 'gold');
   };
 
-  const clearAdminNotifications = () => {
-    setAdminNotifications([]);
-    localStorage.removeItem('aura_carat_admin_notifications');
-    showToast('Notifications archive cleared.', 'info');
-  };
+  const pendingOrdersCount = orders.filter(o => o.status === 'pending').length;
 
   return (
     <StoreContext.Provider
       value={{
         isLoading,
+        loadError,
         products,
+        allProducts,
         categories,
         settings,
         cart,
@@ -651,10 +500,8 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
         orders,
         reviews,
         user,
-        isAdmin: isAdmin || Boolean(adminUser),
-        isAdminMode,
-        adminNotifications,
-        appliedCoupon,
+        isAdmin,
+        pendingOrdersCount,
         cartSummary,
         toasts,
 
@@ -662,34 +509,29 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
         isWishlistOpen,
         isCheckoutOpen,
         isTrackingOpen,
-        isAccountOpen,
         isAdminOpen,
         isCompareModalOpen,
         selectedProduct,
         quickViewProduct,
-        activeTrackingId,
-        trackingOrderId: activeTrackingId,
+        trackingOrderId,
+        trackingPhone,
 
-        // Product Comparison
         compareList,
         addToCompare,
         removeFromCompare,
         clearCompare,
         isInCompare,
-        openCompareModal,
-        closeCompareModal,
+        openCompareModal: () => setIsCompareModalOpen(true),
+        closeCompareModal: () => setIsCompareModalOpen(false),
 
-        adminUser,
         adminLogin,
         adminLogout,
-        loginUser,
-        registerUser,
-        logoutUser,
         updateOrderStatus,
         handleSaveProduct,
         handleDeleteProduct,
+        handleSaveCategory,
+        handleDeleteCategory,
         handleUpdateSettings,
-        clearAdminNotifications,
 
         addToCart,
         removeFromCart,
@@ -697,15 +539,10 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
         clearCart,
         toggleWishlist,
         isInWishlist,
-        applyCouponCode,
-        removeCoupon,
         handlePlaceOrder,
         showToast,
-        signInGoogle,
-        logout,
-        toggleAdminMode,
-        refreshData: () => loadData(isOwnerAuthenticated),
-        fetchOrder: fetchOrderById,
+        refreshData: loadData,
+        fetchOrder: trackOrder,
 
         openCart: () => setIsCartOpen(true),
         closeCart: () => setIsCartOpen(false),
@@ -713,20 +550,18 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
         closeWishlist: () => setIsWishlistOpen(false),
         openCheckout: () => setIsCheckoutOpen(true),
         closeCheckout: () => setIsCheckoutOpen(false),
-        openTracking: (id) => {
-          if (id) setActiveTrackingId(id);
+        openTracking: (id, phone) => {
+          setTrackingOrderId(id || null);
+          setTrackingPhone(phone || null);
           setIsTrackingOpen(true);
         },
         closeTracking: () => setIsTrackingOpen(false),
-        openAccount: () => setIsAccountOpen(true),
-        closeAccount: () => setIsAccountOpen(false),
         openAdmin: () => setIsAdminOpen(true),
         closeAdmin: () => setIsAdminOpen(false),
-        openProductDetails: (product) => setSelectedProduct(product),
+        openProductDetails: product => setSelectedProduct(product),
         closeProductDetails: () => setSelectedProduct(null),
-        openQuickView: (product) => setQuickViewProduct(product),
+        openQuickView: product => setQuickViewProduct(product),
         closeQuickView: () => setQuickViewProduct(null),
-        dismissAdminNotification
       }}
     >
       {children}
@@ -736,8 +571,6 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
 
 export const useStore = () => {
   const context = useContext(StoreContext);
-  if (!context) {
-    throw new Error('useStore must be used within a StoreProvider');
-  }
+  if (!context) throw new Error('useStore must be used within a StoreProvider');
   return context;
 };

@@ -43,7 +43,7 @@ export const AALogo: React.FC<AALogoProps> = ({
       <div className={`relative ${sizeMap[size]} rounded-full overflow-hidden border border-[#C9A25D]/70 bg-[#0B0A08] p-0.5 shadow-[0_2px_15px_rgba(201,162,93,0.35),0_0_20px_rgba(0,0,0,0.8)] shrink-0 transition-transform duration-300 hover:scale-105`}>
         <img
           src={imgSrc}
-          alt="AA JEWELLERS"
+          alt="Aura Adorn logo"
           onError={() => setImgSrc('/icon.svg')}
           className="w-full h-full object-cover rounded-full"
         />
@@ -55,7 +55,7 @@ export const AALogo: React.FC<AALogoProps> = ({
       {showText && (
         <div className="text-left flex flex-col justify-center">
           <span className={`font-serif ${textSizes[size]} font-semibold tracking-wider text-[#FAF7F2] leading-tight block drop-shadow-xs`}>
-            AA JEWELLERS
+            Aura Adorn
           </span>
           {showTagline && (
             <span className="text-[9px] sm:text-[10px] tracking-[0.28em] uppercase text-[#E5C378] font-sans font-medium block">

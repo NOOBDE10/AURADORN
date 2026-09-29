@@ -25,7 +25,7 @@ export const CategoryList: React.FC<CategoryListProps> = ({ onSelectCategory, ac
           className="text-center max-w-xl mx-auto mb-12 space-y-3"
         >
           <span className="text-xs font-sans uppercase tracking-[0.25em] text-[#E5C378] font-semibold">
-            Bespoke Portfolios
+            Shop by Category
           </span>
           <h2 className="font-serif text-3xl sm:text-4xl text-[#FAF7F2] font-normal tracking-tight">
             Curated Jewellery Categories
@@ -65,7 +65,7 @@ export const CategoryList: React.FC<CategoryListProps> = ({ onSelectCategory, ac
                 {/* Circular / Rounded Image with hover zoom */}
                 <div className="w-full aspect-square rounded-xl overflow-hidden mb-3 bg-[#1A1714] relative">
                   <motion.img
-                    src={cat.image}
+                    src={cat.image || '/logo.png'}
                     alt={cat.name}
                     className="w-full h-full object-cover object-center group-hover:scale-110 transition-transform duration-500 ease-out"
                     loading="lazy"

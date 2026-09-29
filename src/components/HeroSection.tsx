@@ -25,7 +25,7 @@ export const HeroSection: React.FC<HeroSectionProps> = ({ onShopNow }) => {
       >
         <img
           src={settings.heroBanner.image}
-          alt="AA JEWELERS Luxury Jewellery Lifestyle"
+          alt="Aura Adorn artificial jewellery collection"
           loading="eager"
           decoding="async"
           className="w-full h-full object-cover object-center"
@@ -68,13 +68,13 @@ export const HeroSection: React.FC<HeroSectionProps> = ({ onShopNow }) => {
               <div className="w-6 h-6 rounded-full overflow-hidden border border-[#E5C378] shrink-0">
                 <img 
                   src="/logo.png" 
-                  alt="AA JEWELLERS Logo" 
+                  alt="Aura Adorn logo" 
                   onError={(e) => { (e.currentTarget as HTMLImageElement).src = '/icon.svg'; }} 
                   className="w-full h-full object-cover" 
                 />
               </div>
               <span className="text-xs font-sans font-bold tracking-[0.22em] uppercase text-[#E5C378]">
-                AA JEWELLERS • {settings.heroBanner.tag}
+                {settings.brandName} • {settings.heroBanner.tag}
               </span>
             </motion.div>
 
@@ -127,7 +127,7 @@ export const HeroSection: React.FC<HeroSectionProps> = ({ onShopNow }) => {
                 className="px-6 py-4 bg-[#14120F]/90 hover:bg-[#1C1915] text-[#FAF7F2] border border-[#C9A25D]/40 font-sans font-medium text-sm tracking-wider rounded-full backdrop-blur-md transition-all duration-300 flex items-center gap-2.5 cursor-pointer shadow-lg hover:border-[#C9A25D]"
               >
                 <MessageCircle className="w-4 h-4 text-[#25D366]" />
-                <span>WhatsApp Concierge</span>
+                <span>Order on WhatsApp</span>
               </motion.a>
             </motion.div>
 
@@ -141,7 +141,7 @@ export const HeroSection: React.FC<HeroSectionProps> = ({ onShopNow }) => {
             >
               <div className="flex items-center gap-2">
                 <ShieldCheck className="w-4 h-4 text-[#E5C378] shrink-0" />
-                <span>GIA / IGI Certified Diamonds</span>
+                <span>Cash on Delivery</span>
               </div>
               <div className="flex items-center gap-2">
                 <Truck className="w-4 h-4 text-[#E5C378] shrink-0" />
@@ -149,7 +149,7 @@ export const HeroSection: React.FC<HeroSectionProps> = ({ onShopNow }) => {
               </div>
               <div className="flex items-center gap-2 col-span-2 sm:col-span-1">
                 <Award className="w-4 h-4 text-[#E5C378] shrink-0" />
-                <span>Tarnish-Proof Steel & 18K Gold</span>
+                <span>Delivery all over Pakistan</span>
               </div>
             </motion.div>
           </motion.div>
@@ -169,7 +169,7 @@ export const HeroSection: React.FC<HeroSectionProps> = ({ onShopNow }) => {
                 <div className="w-full h-full rounded-full overflow-hidden bg-[#0B0A08] p-1.5 flex items-center justify-center relative">
                   <img
                     src="/logo.png"
-                    alt="AA JEWELLERS Official Logo"
+                    alt="Aura Adorn logo"
                     onError={(e) => { (e.currentTarget as HTMLImageElement).src = '/icon.svg'; }}
                     className="w-full h-full object-cover rounded-full"
                   />

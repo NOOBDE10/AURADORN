@@ -20,7 +20,7 @@ interface FooterProps {
 }
 
 export const Footer: React.FC<FooterProps> = ({ onSelectCategory }) => {
-  const { settings, openTracking, openAdmin, openAccount } = useStore();
+  const { settings, categories, openTracking, openAdmin } = useStore();
 
   const handleWhatsApp = () => {
     const cleanPhone = settings.whatsappNumber.replace(/[^0-9]/g, '');
@@ -40,7 +40,7 @@ export const Footer: React.FC<FooterProps> = ({ onSelectCategory }) => {
               <div className="relative w-12 h-12 rounded-full overflow-hidden border border-[#C9A25D] bg-[#0E0D0B] p-0.5 shadow-[0_0_15px_rgba(201,162,93,0.3)] shrink-0">
                 <img 
                   src="/logo.png" 
-                  alt="AA JEWELLERS Logo" 
+                  alt="Aura Adorn logo" 
                   onError={(e) => {
                     (e.currentTarget as HTMLImageElement).src = '/icon.svg';
                   }}
@@ -49,7 +49,7 @@ export const Footer: React.FC<FooterProps> = ({ onSelectCategory }) => {
               </div>
               <div>
                 <span className="font-serif text-2xl font-semibold tracking-wider text-[#FAF7F2] block leading-tight">
-                  AA JEWELLERS
+                  {settings.brandName}
                 </span>
                 <span className="text-[9px] tracking-[0.25em] uppercase text-[#E5C378] block font-sans font-medium">
                   Timeless Beauty • Refined Elegance
@@ -57,25 +57,25 @@ export const Footer: React.FC<FooterProps> = ({ onSelectCategory }) => {
               </div>
             </div>
             <p className="text-xs font-sans leading-relaxed text-[#A89F91]">
-              Artisanal fine jewellery crafted with peerless devotion. Solid hallmarked 18K gold settings and premium tarnish-free stainless steel jewellery with lifetime brilliance.
+              Elegant artificial jewellery for weddings, parties and everyday wear. Beautiful designs, honest prices, Cash on Delivery all over Pakistan.
             </p>
             <div className="flex items-center gap-3 pt-2">
               <button 
                 onClick={handleWhatsApp}
                 className="w-8 h-8 rounded-full bg-[#181613] border border-[#2E2822] hover:bg-[#25D366] hover:text-white text-stone-300 flex items-center justify-center transition-colors cursor-pointer"
-                title="WhatsApp Concierge"
+                title="WhatsApp"
               >
                 <MessageCircle className="w-4 h-4" />
               </button>
-              <a 
-                href="#" 
+              <a
+                href={settings.instagramUrl || "#"} target="_blank" rel="noopener noreferrer" 
                 className="w-8 h-8 rounded-full bg-[#181613] border border-[#2E2822] hover:bg-[#E5C378] hover:text-[#0B0A08] text-stone-300 flex items-center justify-center transition-colors"
                 title="Instagram"
               >
                 <Instagram className="w-4 h-4" />
               </a>
-              <a 
-                href="#" 
+              <a
+                href={settings.facebookUrl || "#"} target="_blank" rel="noopener noreferrer" 
                 className="w-8 h-8 rounded-full bg-[#181613] border border-[#2E2822] hover:bg-[#E5C378] hover:text-[#0B0A08] text-stone-300 flex items-center justify-center transition-colors"
                 title="Facebook"
               >
@@ -87,46 +87,23 @@ export const Footer: React.FC<FooterProps> = ({ onSelectCategory }) => {
           {/* Quick Categories */}
           <div className="space-y-3">
             <h4 className="font-serif text-sm font-semibold uppercase tracking-widest text-[#FAF7F2]">
-              Fine Portfolios
+              Categories
             </h4>
             <ul className="space-y-2 text-xs font-sans">
-              <li>
-                <button onClick={() => onSelectCategory('rings')} className="hover:text-[#E5C378] transition-colors cursor-pointer">
-                  Solitaire & Eternity Rings
-                </button>
-              </li>
-              <li>
-                <button onClick={() => onSelectCategory('necklaces')} className="hover:text-[#E5C378] transition-colors cursor-pointer">
-                  Noble Pendants & Chokers
-                </button>
-              </li>
-              <li>
-                <button onClick={() => onSelectCategory('earrings')} className="hover:text-[#E5C378] transition-colors cursor-pointer">
-                  Diamond Studs & Drops
-                </button>
-              </li>
-              <li>
-                <button onClick={() => onSelectCategory('bracelets')} className="hover:text-[#E5C378] transition-colors cursor-pointer">
-                  Tennis & Charm Bracelets
-                </button>
-              </li>
-              <li>
-                <button onClick={() => onSelectCategory('bangles')} className="hover:text-[#E5C378] transition-colors cursor-pointer">
-                  Handcrafted Gold Bangles
-                </button>
-              </li>
-              <li>
-                <button onClick={() => onSelectCategory('sets')} className="hover:text-[#E5C378] transition-colors cursor-pointer">
-                  Bridal & Ceremonial Sets
-                </button>
-              </li>
+              {categories.map(c => (
+                <li key={c.id}>
+                  <button onClick={() => onSelectCategory(c.slug)} className="hover:text-[#E5C378] transition-colors cursor-pointer">
+                    {c.name}
+                  </button>
+                </li>
+              ))}
             </ul>
           </div>
 
-          {/* Patron Services */}
+          {/* Help */}
           <div className="space-y-3">
             <h4 className="font-serif text-sm font-semibold uppercase tracking-widest text-[#FAF7F2]">
-              Patron Privileges
+              Help
             </h4>
             <ul className="space-y-2 text-xs font-sans">
               <li>
@@ -135,18 +112,13 @@ export const Footer: React.FC<FooterProps> = ({ onSelectCategory }) => {
                 </button>
               </li>
               <li>
-                <button onClick={openAccount} className="hover:text-[#E5C378] transition-colors cursor-pointer">
-                  VIP Patron Lounge
-                </button>
-              </li>
-              <li>
                 <button onClick={handleWhatsApp} className="hover:text-[#E5C378] transition-colors cursor-pointer">
-                  Bespoke Ring Sizing Guide
+                  Size Help on WhatsApp
                 </button>
               </li>
               <li>
-                <button onClick={openAccount} className="hover:text-[#E5C378] transition-colors cursor-pointer text-stone-500 hover:text-[#FAF7F2]">
-                  Staff & Owner Access
+                <button onClick={openAdmin} className="hover:text-[#E5C378] transition-colors cursor-pointer text-stone-500 hover:text-[#FAF7F2]">
+                  Staff Login
                 </button>
               </li>
               <li className="text-stone-500 pt-1">
@@ -158,7 +130,7 @@ export const Footer: React.FC<FooterProps> = ({ onSelectCategory }) => {
           {/* Boutique Contact */}
           <div className="space-y-3">
             <h4 className="font-serif text-sm font-semibold uppercase tracking-widest text-[#FAF7F2]">
-              Flagship Atelier
+              Contact
             </h4>
             <div className="space-y-2.5 text-xs font-sans text-[#A89F91]">
               <p className="flex items-start gap-2">
@@ -175,35 +147,35 @@ export const Footer: React.FC<FooterProps> = ({ onSelectCategory }) => {
               </p>
               <p className="flex items-center gap-2 text-emerald-400">
                 <ShieldCheck className="w-4 h-4 text-emerald-400 shrink-0" />
-                <span>GIA / IGI Certified Authenticity</span>
+                <span>Artificial (imitation) jewellery</span>
               </p>
             </div>
           </div>
         </div>
 
-        {/* Hallmark & Trust Strip */}
+        {/* Trust Strip */}
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 py-6 border-b border-[#241F1A] text-center text-xs font-sans text-[#C5BDB2]">
           <div className="flex items-center justify-center gap-2">
             <Award className="w-5 h-5 text-[#E5C378]" />
-            <span>100% Solid 18K/22K Gold • Certified Purity</span>
+            <span>Quality-checked before dispatch</span>
           </div>
           <div className="flex items-center justify-center gap-2">
             <Truck className="w-5 h-5 text-[#E5C378]" />
-            <span>White-Glove Cash on Delivery Courier</span>
+            <span>Cash on Delivery all over Pakistan</span>
           </div>
           <div className="flex items-center justify-center gap-2">
             <ShieldCheck className="w-5 h-5 text-[#E5C378]" />
-            <span>Lifetime Polish & 30-Day Privilege Return</span>
+            <span>Easy exchange if damaged on arrival</span>
           </div>
         </div>
 
         {/* Bottom Copyright */}
         <div className="flex flex-col sm:flex-row items-center justify-between gap-4 text-xs font-sans text-stone-500">
-          <p>© {new Date().getFullYear()} {settings.brandName} Haute Joaillerie. All rights reserved.</p>
+          <p>© {new Date().getFullYear()} {settings.brandName}. All rights reserved.</p>
           <div className="flex items-center gap-4 text-[11px] text-[#A89F91]">
             <span>Cash on Delivery</span>
             <span>•</span>
-            <span>Insured Courier</span>
+            <span>Delivery Rs {settings.deliveryCharge}</span>
             <span>•</span>
             <span>Tamper-Proof Seal</span>
           </div>

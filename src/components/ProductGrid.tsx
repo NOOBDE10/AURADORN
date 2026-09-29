@@ -1,5 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { useStore } from '../context/StoreContext';
+import { formatPrice } from '../lib/format';
 import { ProductCard } from './ProductCard';
 import { ProductCardSkeleton } from './SkeletonLoader';
 import { SlidersHorizontal, ArrowUpDown, X, Sparkles, Crown } from 'lucide-react';
@@ -22,7 +23,11 @@ export const ProductGrid: React.FC<ProductGridProps> = ({
   const { products, categories, isLoading } = useStore();
 
   const [sortBy, setSortBy] = useState<'featured' | 'price-low' | 'price-high' | 'newest' | 'rating' | 'discount'>('featured');
-  const [maxPrice, setMaxPrice] = useState<number>(7000);
+  const [maxPrice, setMaxPrice] = useState<number>(0); // 0 = no price limit
+  const priceCeiling = useMemo(
+    () => Math.max(1000, Math.ceil(Math.max(0, ...products.map(p => p.price)) / 500) * 500),
+    [products]
+  );
   const [onlyInStock, setOnlyInStock] = useState<boolean>(false);
   const [filterDrawerOpen, setFilterDrawerOpen] = useState<boolean>(false);
 
@@ -58,7 +63,7 @@ export const ProductGrid: React.FC<ProductGridProps> = ({
     }
 
     // Filter by Price
-    list = list.filter(p => p.price <= maxPrice);
+    if (maxPrice > 0) list = list.filter(p => p.price <= maxPrice);
 
     // Filter by Stock
     if (onlyInStock) {
@@ -102,13 +107,13 @@ export const ProductGrid: React.FC<ProductGridProps> = ({
           </div>
           <h2 className="font-serif text-3xl sm:text-4xl text-[#FAF7F2] font-normal tracking-tight">
             {selectedCategory === 'all' || !selectedCategory
-              ? 'All Haute Joaillerie Creations'
+              ? 'All Jewellery'
               : selectedCategory === 'new-arrivals'
               ? 'New Arrival Masterpieces'
               : selectedCategory === 'sale'
               ? 'Exclusive Privileges & Discounts'
               : selectedCategory === 'exclusives'
-              ? 'Vault Exclusives & Limited Editions'
+              ? 'Featured'
               : selectedCategory === 'best-sellers'
               ? 'Signature Best Sellers'
               : `${selectedCategory.charAt(0).toUpperCase() + selectedCategory.slice(1)} Portfolio`}
@@ -216,22 +221,21 @@ export const ProductGrid: React.FC<ProductGridProps> = ({
                   Max Budget
                 </label>
                 <span className="text-sm font-serif font-semibold text-[#E5C378]">
-                  ${maxPrice.toLocaleString()}
+                  {maxPrice > 0 ? formatPrice(maxPrice) : 'Any'}
                 </span>
               </div>
               <input
                 type="range"
-                min="500"
-                max="7000"
-                step="250"
-                value={maxPrice}
-                onChange={(e) => setMaxPrice(Number(e.target.value))}
+                min="0"
+                max={priceCeiling}
+                step="100"
+                value={maxPrice || priceCeiling}
+                onChange={(e) => { const v = Number(e.target.value); setMaxPrice(v >= priceCeiling ? 0 : v); }}
                 className="w-full accent-[#C9A25D] cursor-pointer"
               />
               <div className="flex justify-between text-[11px] text-stone-500 mt-1">
-                <span>$500</span>
-                <span>$3,500</span>
-                <span>$7,000+</span>
+                <span>Rs 0</span>
+                <span>{formatPrice(priceCeiling)}</span>
               </div>
             </div>
 
@@ -245,11 +249,11 @@ export const ProductGrid: React.FC<ProductGridProps> = ({
                   className="w-4 h-4 accent-[#C9A25D] rounded"
                 />
                 <span className="text-xs font-sans font-medium text-[#FAF7F2]">
-                  Show Ready in Boutique Vault Only
+                  In stock only
                 </span>
               </label>
               <p className="text-[11px] text-[#8C8275] mt-1 pl-7">
-                Hides designs currently in bespoke casting.
+                Hide items that are sold out.
               </p>
             </div>
           </div>
@@ -266,14 +270,14 @@ export const ProductGrid: React.FC<ProductGridProps> = ({
       ) : filteredProducts.length === 0 ? (
         <div className="py-20 text-center bg-[#14120F] rounded-3xl border border-[#C9A25D]/30 p-8 max-w-md mx-auto shadow-2xl">
           <Sparkles className="w-8 h-8 text-[#E5C378] mx-auto mb-3" />
-          <h3 className="font-serif text-xl text-[#FAF7F2] mb-2">No Matching Jewels Found</h3>
+          <h3 className="font-serif text-xl text-[#FAF7F2] mb-2">{products.length === 0 ? 'New collection coming soon' : 'No matching items found'}</h3>
           <p className="text-xs font-sans text-[#A89F91] mb-6">
             Try adjusting your price range or explore all categories.
           </p>
           <button
             onClick={() => {
               onSelectCategory('all');
-              setMaxPrice(7000);
+              setMaxPrice(0);
               setOnlyInStock(false);
             }}
             className="px-6 py-2.5 bg-gradient-to-r from-[#C9A25D] to-[#E5C378] text-[#0B0A08] text-xs font-sans font-bold rounded-full uppercase tracking-wider hover:brightness-110 transition-all cursor-pointer shadow-md"

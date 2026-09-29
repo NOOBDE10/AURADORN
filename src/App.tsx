@@ -14,7 +14,6 @@ import { WishlistDrawer } from './components/WishlistDrawer';
 import { CheckoutModal } from './components/CheckoutModal';
 import { OrderSuccessModal } from './components/OrderSuccessModal';
 import { OrderTrackingModal } from './components/OrderTrackingModal';
-import { CustomerAccountModal } from './components/CustomerAccountModal';
 import { AdminDashboard } from './components/AdminDashboard';
 import { WhatsAppConcierge } from './components/WhatsAppConcierge';
 import { PWAInstallBanner } from './components/PWAInstallBanner';
@@ -87,7 +86,7 @@ export function MainStore() {
                 />
               </RevealOnScroll>
 
-              {/* Private Vault Deals & Flash Allocations (With Top-Center AA Jewellers Logo) */}
+              {/* Deals */}
               <RevealOnScroll direction="up" delay={60}>
                 <VaultDealsSection onNavigateToShop={navigateToShop} />
               </RevealOnScroll>
@@ -98,13 +97,13 @@ export function MainStore() {
                   <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-[#C9A25D]/10 via-transparent to-transparent pointer-events-none" />
                   <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center space-y-4 relative z-10">
                     <span className="text-xs uppercase tracking-[0.3em] text-[#E5C378] font-semibold font-sans">
-                      The Curated Portfolio
+                      Our Collection
                     </span>
                     <h2 className="font-serif text-3xl sm:text-4xl text-[#FAF7F2]">
-                      Featured Creations from the Vault
+                      Featured Jewellery
                     </h2>
                     <p className="text-xs sm:text-sm font-sans text-[#A89F91] max-w-xl mx-auto">
-                      Handcrafted solitaires and certified gold jewellery, hallmarked with lifetime authenticity.
+                      Beautiful artificial jewellery for every occasion, with Cash on Delivery all over Pakistan.
                     </p>
                     <div className="pt-2">
                       <motion.button
@@ -113,7 +112,7 @@ export function MainStore() {
                         onClick={() => navigateToShop('all')}
                         className="inline-flex items-center gap-2 px-8 py-3.5 bg-gradient-to-r from-[#C9A25D] via-[#E5C378] to-[#C9A25D] text-[#0B0A08] font-sans font-bold text-xs uppercase tracking-wider rounded-full shadow-[0_4px_20px_rgba(201,162,93,0.3)] hover:brightness-110 transition-all duration-300 cursor-pointer"
                       >
-                        <span>Explore Complete Boutique Shop</span>
+                        <span>Shop All Jewellery</span>
                         <span className="text-lg leading-none">→</span>
                       </motion.button>
                     </div>
@@ -167,7 +166,6 @@ export function MainStore() {
         onClose={() => setCompletedOrder(null)}
       />
       <OrderTrackingModal />
-      <CustomerAccountModal />
       <AdminDashboard />
 
       {/* Floating Concierge, Comparison Bar & Notifications */}

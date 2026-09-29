@@ -9,9 +9,9 @@ export const WhatsAppConcierge: React.FC = () => {
   const cleanPhone = settings.whatsappNumber.replace(/[^0-9]/g, '');
 
   const quickInquiries = [
-    'I would like to inquire about bespoke bridal solitaires.',
-    'Can I receive guidance on ring sizing & GIA certification?',
-    'I would like to request live video inspection of a design.',
+    'I want to ask about bridal jewellery sets.',
+    'Can you help me choose the right bangle / ring size?',
+    'Can I see more pictures or a video of a design?',
     'I have a question regarding Cash on Delivery dispatch.'
   ];
 
@@ -38,7 +38,7 @@ export const WhatsAppConcierge: React.FC = () => {
                 <span className="absolute bottom-0 right-0 w-3 h-3 bg-emerald-400 border-2 border-[#0A0908] rounded-full" />
               </div>
               <div>
-                <h4 className="font-serif text-sm font-medium text-[#FAF7F2]">Boutique Concierge</h4>
+                <h4 className="font-serif text-sm font-medium text-[#FAF7F2]">Chat with us</h4>
                 <p className="text-[10px] font-sans text-stone-400 flex items-center gap-1">
                   <Clock className="w-3 h-3 text-[#E5C378]" />
                   <span>Typically replies within 5 minutes</span>
@@ -58,7 +58,7 @@ export const WhatsAppConcierge: React.FC = () => {
             <div className="bg-[#14120F] p-3 rounded-2xl border border-[#26211B] text-xs font-sans text-stone-300 shadow-2xs">
               <p className="font-medium text-[#FAF7F2] mb-1 flex items-center gap-1.5">
                 <Sparkles className="w-3.5 h-3.5 text-[#E5C378]" />
-                Welcome to AA JEWELERS
+                Welcome to {settings.brandName}
               </p>
               <p className="text-[#A89F91] text-[11px] leading-relaxed">
                 Connect directly with our senior gemmologist for custom sizing, valuation reports, or Cash on Delivery assistance.
@@ -101,7 +101,7 @@ export const WhatsAppConcierge: React.FC = () => {
       <button
         onClick={() => setIsOpen(!isOpen)}
         className="group relative flex items-center justify-center w-14 h-14 bg-[#25D366] hover:bg-[#20bd5a] text-white rounded-full shadow-[0_4px_25px_rgba(37,211,102,0.4)] hover:shadow-[0_4px_30px_rgba(37,211,102,0.6)] hover:scale-105 active:scale-95 transition-all duration-300 cursor-pointer"
-        aria-label="WhatsApp Concierge"
+        aria-label="Chat on WhatsApp"
         title="Chat on WhatsApp"
       >
         <span className="absolute -inset-0.5 rounded-full bg-[#25D366] opacity-35 group-hover:opacity-75 animate-ping -z-10" />

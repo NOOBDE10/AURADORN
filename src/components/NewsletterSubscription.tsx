@@ -25,23 +25,19 @@ export const NewsletterSubscription: React.FC<NewsletterSubscriptionProps> = ({
   const [email, setEmail] = useState('');
   const [status, setStatus] = useState<'idle' | 'loading' | 'success' | 'error'>('idle');
   const [errorMessage, setErrorMessage] = useState('');
-  const [alreadySubscribed, setAlreadySubscribed] = useState(true);
-  const [savedEmail, setSavedEmail] = useState<string>('auraadornjewellers@gmail.com');
+  const [alreadySubscribed, setAlreadySubscribed] = useState(false);
+  const [savedEmail, setSavedEmail] = useState<string>('');
 
-  // Check if current user has subscribed or default to boutique patron email
+  // Remember a previous subscription on this device.
   useEffect(() => {
     try {
-      const stored = localStorage.getItem('aura_carat_newsletter_subscribed');
-      if (stored && stored !== 'nirbanmubashirzubair@gmail.com') {
+      const stored = localStorage.getItem('aura_adorn_newsletter_subscribed');
+      if (stored) {
         setSavedEmail(stored);
-        setAlreadySubscribed(true);
-      } else {
-        setSavedEmail('auraadornjewellers@gmail.com');
-        localStorage.setItem('aura_carat_newsletter_subscribed', 'auraadornjewellers@gmail.com');
         setAlreadySubscribed(true);
       }
     } catch {
-      setSavedEmail('auraadornjewellers@gmail.com');
+      // storage unavailable
     }
   }, []);
 
@@ -68,7 +64,7 @@ export const NewsletterSubscription: React.FC<NewsletterSubscriptionProps> = ({
         setSavedEmail(email.trim().toLowerCase());
         setAlreadySubscribed(true);
         try {
-          localStorage.setItem('aura_carat_newsletter_subscribed', email.trim().toLowerCase());
+          localStorage.setItem('aura_adorn_newsletter_subscribed', email.trim().toLowerCase());
         } catch {
           // Ignore
         }
@@ -97,7 +93,7 @@ export const NewsletterSubscription: React.FC<NewsletterSubscriptionProps> = ({
 
       <div className="relative z-10 max-w-4xl mx-auto">
         {alreadySubscribed && status !== 'loading' ? (
-          /* Subscribed State: Patron Confirmation */
+          /* Subscribed state */
           <div className="text-center py-4 space-y-4 animate-in fade-in zoom-in-95 duration-300">
             <div className="inline-flex items-center justify-center w-14 h-14 rounded-full bg-[#181613] border border-[#C9A25D]/60 text-[#E5C378] shadow-[0_0_20px_rgba(201,162,93,0.3)]">
               <Crown className="w-7 h-7 text-[#E5C378]" />
@@ -108,10 +104,10 @@ export const NewsletterSubscription: React.FC<NewsletterSubscriptionProps> = ({
                 Privilege Roster Confirmed
               </span>
               <h3 className="font-serif text-2xl sm:text-3xl text-[#FAF7F2]">
-                You Are on Our Private Launch Roster
+                You're subscribed!
               </h3>
               <p className="text-xs sm:text-sm font-sans text-[#A89F91] max-w-xl mx-auto leading-relaxed">
-                Thank you for your allegiance. Priority allocations for upcoming high-jewellery collections, bespoke private viewings, and limited edition drops will be dispatched to{' '}
+                Thank you for subscribing. New arrivals and offers will be sent to{' '}
                 <span className="text-[#E5C378] font-medium underline underline-offset-4 decoration-[#C9A25D]/50">
                   {savedEmail}
                 </span>.
@@ -126,7 +122,7 @@ export const NewsletterSubscription: React.FC<NewsletterSubscriptionProps> = ({
               <span>•</span>
               <span className="flex items-center gap-1.5 text-[#E5C378]">
                 <ShieldCheck className="w-3.5 h-3.5 text-[#E5C378]" />
-                White-Glove Delivery Privilege
+                Cash on Delivery all over Pakistan
               </span>
               <span>•</span>
               <button
@@ -149,11 +145,11 @@ export const NewsletterSubscription: React.FC<NewsletterSubscriptionProps> = ({
               </div>
 
               <h3 className="font-serif text-2xl sm:text-3xl lg:text-4xl text-white leading-tight font-medium">
-                Be First for the Next <span className="italic text-[#E6D4AF]">Luxury Drop</span>
+                Get <span className="italic text-[#E6D4AF]">New Arrivals</span> First
               </h3>
 
               <p className="text-xs sm:text-sm font-sans text-stone-300 leading-relaxed">
-                Subscribe to our discreet mailing list to receive confidential previews of numbered limited editions, vault solitaires, and bespoke ceremonial suites before public release.
+                Subscribe to hear about new designs, restocks and special offers. No spam.
               </p>
 
               {/* Value proposition badges */}
@@ -168,13 +164,13 @@ export const NewsletterSubscription: React.FC<NewsletterSubscriptionProps> = ({
                   <div className="w-4 h-4 rounded-full bg-[#C9A25D]/20 flex items-center justify-center shrink-0">
                     <Crown className="w-2.5 h-2.5 text-[#C9A25D]" />
                   </div>
-                  <span>Vault Allocation Access</span>
+                  <span>New arrivals first</span>
                 </div>
                 <div className="flex items-center gap-2">
                   <div className="w-4 h-4 rounded-full bg-[#C9A25D]/20 flex items-center justify-center shrink-0">
                     <Gift className="w-2.5 h-2.5 text-[#C9A25D]" />
                   </div>
-                  <span>2X Patron Points on First Commission</span>
+                  <span>Exclusive offers</span>
                 </div>
                 <div className="flex items-center gap-2">
                   <div className="w-4 h-4 rounded-full bg-[#C9A25D]/20 flex items-center justify-center shrink-0">
@@ -234,7 +230,7 @@ export const NewsletterSubscription: React.FC<NewsletterSubscriptionProps> = ({
               <div className="flex items-center justify-between text-[11px] font-sans text-stone-400 pt-1 border-t border-white/5">
                 <span className="flex items-center gap-1.5">
                   <ShieldCheck className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
-                  <span>Encrypted Patron Security</span>
+                  <span>We never share your email</span>
                 </span>
                 <span>Unsubscribe at any moment</span>
               </div>

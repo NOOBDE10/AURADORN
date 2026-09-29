@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { useStore } from '../context/StoreContext';
+import { formatPrice } from '../lib/format';
 import { Product } from '../types';
 import { Heart, Eye, ShoppingBag, Star, Zap, Check, ArrowLeftRight, Sparkles } from 'lucide-react';
 import { LoyaltyBadge } from './LoyaltyBadge';
@@ -119,7 +120,7 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product, index = 0 }) 
           <div className="relative w-8 h-8 sm:w-9 sm:h-9 rounded-full bg-[#0B0A08] border-2 border-[#C9A25D] p-0.5 shadow-[0_2px_15px_rgba(201,162,93,0.4),0_0_12px_rgba(0,0,0,0.9)] flex items-center justify-center group-hover:border-[#E5C378] group-hover:scale-110 transition-all duration-300">
             <img 
               src="/logo.png" 
-              alt="AA JEWELLERS" 
+              alt="Aura Adorn logo" 
               onError={(e) => {
                 (e.currentTarget as HTMLImageElement).src = '/icon.svg';
               }}
@@ -220,11 +221,11 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product, index = 0 }) 
         <div className="pt-2 border-t border-[#241F1A]">
           <div className="flex items-baseline gap-2 mb-3">
             <span className="font-serif text-lg sm:text-xl font-semibold text-[#E5C378]">
-              ${product.price.toLocaleString()}
+              {formatPrice(product.price)}
             </span>
             {product.originalPrice > product.price && (
               <span className="font-sans text-xs text-stone-500 line-through">
-                ${product.originalPrice.toLocaleString()}
+                {formatPrice(product.originalPrice)}
               </span>
             )}
             {product.stock <= 3 && product.stock > 0 && (

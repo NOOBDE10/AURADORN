@@ -1,5 +1,6 @@
 import React from 'react';
 import { useStore } from '../context/StoreContext';
+import { formatPrice } from '../lib/format';
 import { X, Heart, ShoppingBag, Zap, Star, ArrowRight } from 'lucide-react';
 import { LoyaltyBadge } from './LoyaltyBadge';
 
@@ -53,7 +54,7 @@ export const QuickViewModal: React.FC = () => {
               <div className="w-8 h-8 rounded-full overflow-hidden border-2 border-[#C9A25D] bg-[#0E0D0B] p-0.5 shadow-[0_2px_15px_rgba(201,162,93,0.4)]">
                 <img 
                   src="/logo.png" 
-                  alt="AA JEWELLERS" 
+                  alt="Aura Adorn logo" 
                   onError={(e) => { (e.currentTarget as HTMLImageElement).src = '/icon.svg'; }} 
                   className="w-full h-full object-cover rounded-full" 
                 />
@@ -86,11 +87,11 @@ export const QuickViewModal: React.FC = () => {
 
               <div className="flex items-baseline gap-2 py-1">
                 <span className="font-serif text-2xl font-semibold text-[#E5C378]">
-                  ${quickViewProduct.price.toLocaleString()}
+                  {formatPrice(quickViewProduct.price)}
                 </span>
                 {quickViewProduct.originalPrice > quickViewProduct.price && (
                   <span className="font-sans text-xs text-stone-500 line-through">
-                    ${quickViewProduct.originalPrice.toLocaleString()}
+                    {formatPrice(quickViewProduct.originalPrice)}
                   </span>
                 )}
               </div>
@@ -100,9 +101,9 @@ export const QuickViewModal: React.FC = () => {
               </p>
 
               <div className="pt-2 text-xs text-stone-300 font-sans space-y-1 bg-[#14120F] p-3 rounded-xl border border-[#26211B]">
-                <p><span className="font-medium text-[#E5C378]">Metal:</span> {quickViewProduct.details.metal}</p>
-                <p><span className="font-medium text-[#E5C378]">Stone:</span> {quickViewProduct.details.stone || 'Natural Diamond'}</p>
-                <p><span className="font-medium text-[#E5C378]">Cert:</span> {quickViewProduct.details.certification || 'Certified Authenticity'}</p>
+                {quickViewProduct.details?.metal && <p><span className="font-medium text-[#E5C378]">Material:</span> {quickViewProduct.details.metal}</p>}
+                {quickViewProduct.details?.stone && <p><span className="font-medium text-[#E5C378]">Stones:</span> {quickViewProduct.details.stone}</p>}
+                <p><span className="font-medium text-[#E5C378]">Type:</span> Artificial jewellery</p>
               </div>
             </div>
 

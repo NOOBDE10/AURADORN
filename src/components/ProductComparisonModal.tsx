@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { useStore } from '../context/StoreContext';
+import { formatPrice } from '../lib/format';
 import { Product } from '../types';
 import { LoyaltyBadge, getProductLoyaltyTier } from './LoyaltyBadge';
 import { 
@@ -100,7 +101,7 @@ export const ProductComparisonModal: React.FC = () => {
                 </span>
               </div>
               <h2 className="font-serif text-lg sm:text-2xl text-[#FAF7F2] font-medium">
-                Haute Joaillerie Specifications Comparison
+                Compare Items
               </h2>
             </div>
           </div>
@@ -154,8 +155,8 @@ export const ProductComparisonModal: React.FC = () => {
               </div>
               <h3 className="font-serif text-2xl text-[#FAF7F2]">No Pieces Selected for Comparison</h3>
               <p className="text-xs sm:text-sm font-sans text-[#A89F91] leading-relaxed">
-                Explore our fine jewellery portfolios and click the comparison icon on any piece to evaluate stones, solid gold purities, and hallmarking side by side.
-              </p>
+                Tap the compare icon on any item to compare it side by side.
+</p>
               <div className="pt-2">
                 <button
                   onClick={closeCompareModal}
@@ -272,11 +273,11 @@ export const ProductComparisonModal: React.FC = () => {
                             </span>
                             <div className="flex items-baseline gap-2">
                               <span className="font-serif text-lg font-bold text-[#E5C378]">
-                                ${product.price.toLocaleString()}
+                                {formatPrice(product.price)}
                               </span>
                               {product.originalPrice > product.price && (
                                 <span className="text-xs text-stone-500 line-through">
-                                  ${product.originalPrice.toLocaleString()}
+                                  {formatPrice(product.originalPrice)}
                                 </span>
                               )}
                               {product.discountPercentage > 0 && (
@@ -287,7 +288,7 @@ export const ProductComparisonModal: React.FC = () => {
                             </div>
                             <span className="text-[10px] text-emerald-400 flex items-center gap-1 mt-1">
                               <Check className="w-3 h-3 text-emerald-400" />
-                              Free Insured Delivery • COD Available
+                              Cash on Delivery all over Pakistan
                             </span>
                           </div>
 
@@ -296,53 +297,27 @@ export const ProductComparisonModal: React.FC = () => {
                             highlightDiffs && hasDifference(p => p.details.metal) ? 'bg-[#221B10] p-2 rounded-lg' : ''
                           }`}>
                             <span className="text-[10px] uppercase font-bold tracking-wider text-stone-400 block">
-                              Precious Metal & Purity
+                              Material & Finish
                             </span>
                             <p className="font-medium text-[#FAF7F2]">
                               {product.details.metal}
                             </p>
-                            {product.details.karat && (
-                              <p className="text-[11px] text-stone-400">
-                                Karat: {product.details.karat}
-                              </p>
-                            )}
                             {product.details.weight && (
                               <p className="text-[11px] text-stone-400">
-                                Gold Weight: {product.details.weight}
+                                Weight: {product.details.weight}
                               </p>
                             )}
                           </div>
 
-                          {/* Gemstones & Diamonds */}
+                          {/* Stones */}
                           <div className={`space-y-1 pb-3 border-b border-[#241F1A] ${
                             highlightDiffs && hasDifference(p => p.details.stone) ? 'bg-[#221B10] p-2 rounded-lg' : ''
                           }`}>
                             <span className="text-[10px] uppercase font-bold tracking-wider text-stone-400 block">
-                              Primary Gemstone / Diamond
+                              Stones
                             </span>
                             <p className="font-medium text-[#FAF7F2]">
-                              {product.details.stone || 'Pure Solid Metal Casting'}
-                            </p>
-                            {product.details.gemstoneWeight && (
-                              <p className="text-[11px] text-[#E5C378] font-medium">
-                                Carat Weight: {product.details.gemstoneWeight}
-                              </p>
-                            )}
-                          </div>
-
-                          {/* Certification & Provenance */}
-                          <div className={`space-y-1 pb-3 border-b border-[#241F1A] ${
-                            highlightDiffs && hasDifference(p => p.details.certification) ? 'bg-[#221B10] p-2 rounded-lg' : ''
-                          }`}>
-                            <span className="text-[10px] uppercase font-bold tracking-wider text-stone-400 block">
-                              Certification & Authentication
-                            </span>
-                            <p className="font-medium text-[#FAF7F2] flex items-center gap-1.5">
-                              <ShieldCheck className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
-                              <span>{product.details.certification || 'Certified Hallmarked Fine Jewellery'}</span>
-                            </p>
-                            <p className="text-[11px] text-stone-400">
-                              Lifetime Polish & Complimentary Sizing
+                              {product.details.stone || '—'}
                             </p>
                           </div>
 
@@ -352,7 +327,7 @@ export const ProductComparisonModal: React.FC = () => {
                               Availability & Scarcity
                             </span>
                             <div className="flex items-center justify-between text-xs">
-                              <span className="text-stone-300">Atelier Stock:</span>
+                              <span className="text-stone-300">Stock:</span>
                               <span className={`font-semibold ${
                                 product.stock <= 2 ? 'text-amber-400' : 'text-emerald-400'
                               }`}>
@@ -361,7 +336,7 @@ export const ProductComparisonModal: React.FC = () => {
                             </div>
                             {tier && (
                               <p className="text-[11px] text-[#E5C378] font-medium">
-                                {tier.fullTitle} ({tier.editionText || 'Vault Lot'})
+                                {tier.fullTitle} ({tier.editionText || ''})
                               </p>
                             )}
                           </div>
@@ -514,7 +489,7 @@ export const ProductComparisonModal: React.FC = () => {
 
                       <div className="text-right shrink-0">
                         <span className="font-serif text-sm font-semibold text-[#E5C378] block">
-                          ${p.price.toLocaleString()}
+                          {formatPrice(p.price)}
                         </span>
                         <span className="text-[10px] uppercase font-sans font-bold text-[#E5C378] group-hover:underline">
                           + Add to Compare
@@ -532,7 +507,7 @@ export const ProductComparisonModal: React.FC = () => {
         <div className="p-3 sm:p-4 bg-[#0A0908] border-t border-[#241F1A] flex flex-wrap items-center justify-between gap-2 text-xs font-sans text-stone-400 shrink-0">
           <div className="flex items-center gap-2 text-[11px]">
             <ShieldCheck className="w-3.5 h-3.5 text-emerald-400" />
-            <span>All creations include master goldsmith hallmarking, tamper-proof security seals, and nationwide COD.</span>
+            <span>Cash on Delivery all over Pakistan.</span>
           </div>
           <button
             onClick={closeCompareModal}
