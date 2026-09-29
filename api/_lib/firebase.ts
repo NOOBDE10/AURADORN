@@ -3,7 +3,7 @@ import { getFirestore } from 'firebase-admin/firestore';
 
 /**
  * FIREBASE_SERVICE_ACCOUNT holds the service-account JSON, either raw or base64-encoded.
- * Set it in Netlify → Site configuration → Environment variables (never commit it).
+ * Set it in Vercel → Project → Settings → Environment Variables (never commit it).
  */
 function loadServiceAccount() {
   const raw = process.env.FIREBASE_SERVICE_ACCOUNT;

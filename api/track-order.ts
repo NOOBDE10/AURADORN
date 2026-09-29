@@ -1,8 +1,7 @@
-import { db, json, phoneKey } from '../lib/firebase';
+import { db, json, phoneKey } from './_lib/firebase.js';
 
-/** Returns an order's status only when the order ID and the checkout phone number both match. */
-export default async (req: Request) => {
-  if (req.method !== 'POST') return json({ error: 'Method not allowed' }, 405);
+/** POST /api/track-order: returns an order's status only when the order ID and the checkout phone number both match. */
+export async function POST(req: Request): Promise<Response> {
   let body: { orderId?: unknown; phone?: unknown };
   try {
     body = await req.json();
@@ -35,4 +34,4 @@ export default async (req: Request) => {
       createdAt: o.createdAt,
     },
   });
-};
+}

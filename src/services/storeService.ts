@@ -116,7 +116,7 @@ export interface PlaceOrderRequest {
 async function callFunction<T>(name: string, body: unknown): Promise<T> {
   let res: Response;
   try {
-    res = await fetch(`/.netlify/functions/${name}`, {
+    res = await fetch(`/api/${name}`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(body),
@@ -131,7 +131,7 @@ async function callFunction<T>(name: string, body: unknown): Promise<T> {
   return data as T;
 }
 
-/** Order is validated, priced and saved on the server (netlify/functions/place-order). */
+/** Order is validated, priced and saved on the server (api/place-order.ts). */
 export async function placeOrder(request: PlaceOrderRequest): Promise<Order> {
   const { order } = await callFunction<{ order: Order }>('place-order', request);
   return order;

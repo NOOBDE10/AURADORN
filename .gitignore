@@ -6,3 +6,4 @@ secrets/
 *-admin.json
 dist/
 .netlify/
+.vercel/

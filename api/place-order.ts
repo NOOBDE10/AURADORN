@@ -1,6 +1,6 @@
 
-import { db, json, phoneKey } from '../lib/firebase';
-import { sendOrderAlert } from '../lib/email';
+import { db, json, phoneKey } from './_lib/firebase.js';
+import { sendOrderAlert } from './_lib/email.js';
 
 interface ItemRequest { productId: string; quantity: number; option?: string }
 
@@ -17,8 +17,7 @@ function newOrderId(): string {
 
 class UserError extends Error {}
 
-export default async (req: Request) => {
-  if (req.method !== 'POST') return json({ error: 'Method not allowed' }, 405);
+export async function POST(req: Request): Promise<Response> {
 
   let body: Record<string, unknown>;
   try {
@@ -157,6 +156,4 @@ export default async (req: Request) => {
 
   const { phoneKey: _omit, ...publicOrder } = order;
   return json({ order: publicOrder });
-};
-
-
+}
