@@ -1,0 +1,142 @@
+rules_version = '2';
+
+// Security rules for the AURA ADORN shop.
+// Deploy with:  firebase deploy --only firestore:rules   (see SETUP.md)
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ---------- helpers ----------
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    // Admins are users whose UID has a document in /admins (created by hand in the Firebase console).
+    function isAdmin() {
+      return isSignedIn() && exists(/databases/$(database)/documents/admins/$(request.auth.uid));
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function str(field, maxLen) {
+      return request.resource.data[field] is string && request.resource.data[field].size() <= maxLen;
+    }
+
+    function optStr(field, maxLen) {
+      return !(field in request.resource.data) || request.resource.data[field] == null || str(field, maxLen);
+    }
+
+    // ---------- catalogue: anyone can read, only admins can change ----------
+    match /products/{productId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    match /categories/{categoryId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    match /settings/{settingId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    // ---------- discount codes ----------
+    // Customers can look up one code by name (it is the document id) but cannot list all codes.
+    // At checkout a customer may only bump usedCount by exactly 1.
+    match /coupons/{code} {
+      allow get: if true;
+      allow list: if isAdmin();
+      allow create, delete: if isAdmin();
+      allow update: if isAdmin() || (
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['usedCount']) &&
+        request.resource.data.usedCount == resource.data.usedCount + 1 &&
+        resource.data.active == true &&
+        (resource.data.maxUses == 0 || resource.data.usedCount < resource.data.maxUses)
+      );
+    }
+
+    // ---------- orders ----------
+    match /orders/{orderId} {
+      // Anyone (guest or signed in) can place a Cash on Delivery order.
+      allow create: if isValidId(orderId) &&
+        request.resource.data.id == orderId &&
+        request.resource.data.status == 'pending' &&
+        request.resource.data.paymentMethod == 'Cash on Delivery' &&
+        request.resource.data.stockDeducted == false &&
+        !('adminNote' in request.resource.data) &&
+        str('customerName', 150) && request.resource.data.customerName.size() > 0 &&
+        str('phone', 30) && request.resource.data.phone.size() >= 10 &&
+        str('email', 150) &&
+        str('address', 500) &&
+        str('city', 100) &&
+        optStr('area', 150) &&
+        optStr('postalCode', 20) &&
+        optStr('notes', 1000) &&
+        request.resource.data.items is list &&
+        request.resource.data.items.size() > 0 &&
+        request.resource.data.items.size() <= 50 &&
+        request.resource.data.subtotal is number && request.resource.data.subtotal > 0 &&
+        request.resource.data.discount is number && request.resource.data.discount >= 0 &&
+        request.resource.data.deliveryCharge is number && request.resource.data.deliveryCharge >= 0 &&
+        request.resource.data.totalAmount is number &&
+        request.resource.data.totalAmount == request.resource.data.subtotal - request.resource.data.discount + request.resource.data.deliveryCharge &&
+        (
+          request.resource.data.customerId == null ||
+          (isSignedIn() && request.resource.data.customerId == request.auth.uid)
+        );
+
+      // Order numbers are long and random, so knowing one is enough to track it.
+      allow get: if true;
+
+      // Admin sees every order; a signed-in customer can list only their own.
+      allow list: if isAdmin() || (isSignedIn() && resource.data.customerId == request.auth.uid);
+
+      allow update, delete: if isAdmin();
+    }
+
+    // ---------- reviews: public sees approved only; new reviews wait for approval ----------
+    match /reviews/{reviewId} {
+      allow read: if resource.data.status == 'approved' || isAdmin();
+      allow create: if isValidId(reviewId) &&
+        request.resource.data.status == 'pending' &&
+        request.resource.data.verifiedPurchase == false &&
+        request.resource.data.rating is int &&
+        request.resource.data.rating >= 1 && request.resource.data.rating <= 5 &&
+        str('productId', 128) &&
+        str('customerName', 100) && request.resource.data.customerName.size() > 0 &&
+        str('customerEmail', 150) &&
+        str('title', 150) &&
+        str('comment', 2000) && request.resource.data.comment.size() > 0;
+      allow update, delete: if isAdmin();
+    }
+
+    // ---------- customer profiles ----------
+    match /customers/{customerId} {
+      allow read, write: if isSignedIn() && request.auth.uid == customerId;
+      allow read: if isAdmin();
+    }
+
+    // ---------- admins registry (managed in the Firebase console) ----------
+    match /admins/{adminId} {
+      // A user may check whether they themselves are an admin.
+      allow get: if isSignedIn() && request.auth.uid == adminId;
+      allow read, write: if isAdmin();
+    }
+
+    // ---------- newsletter ----------
+    match /subscribers/{subscriberId} {
+      allow create: if isValidId(subscriberId) &&
+        str('email', 150) &&
+        request.resource.data.email.matches('^[^@\\s]+@[^@\\s]+\\.[^@\\s]+$');
+      allow read, update, delete: if isAdmin();
+    }
+
+    // Everything else is closed.
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

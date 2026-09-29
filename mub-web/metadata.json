@@ -1,0 +1,8 @@
+{
+  "name": "AURA ADORN",
+  "description": "Ultra-premium jewellery e-commerce platform featuring handcrafted gold, diamond, and gemstone collections with real-time order tracking, custom WhatsApp orders, and administrative store management.",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}
