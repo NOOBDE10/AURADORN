@@ -180,7 +180,7 @@ export const ShopPage: React.FC<ShopPageProps> = ({
               Home
             </button>
             <ChevronRight className="w-3.5 h-3.5 text-stone-500" />
-            <span className="text-[#E5C378] font-medium">Boutique Shop</span>
+            <span className="text-[#E5C378] font-medium">Shop</span>
             {selectedCategory !== 'all' && (
               <>
                 <ChevronRight className="w-3.5 h-3.5 text-stone-500" />
@@ -207,7 +207,7 @@ export const ShopPage: React.FC<ShopPageProps> = ({
             <div className="flex items-center gap-4 bg-white/5 border border-[#C9A25D]/30 rounded-2xl p-3 px-5 backdrop-blur-md text-xs font-sans">
               <div>
                 <span className="block font-serif text-lg text-[#E5C378] font-semibold">{products.length}</span>
-                <span className="text-[#A89F91] text-[10px] tracking-widest uppercase">Masterpieces</span>
+                <span className="text-[#A89F91] text-[10px] tracking-widest uppercase">Products</span>
               </div>
               <div className="h-8 w-px bg-white/10" />
               <div>
@@ -230,7 +230,7 @@ export const ShopPage: React.FC<ShopPageProps> = ({
                 : 'bg-[#14120F] text-[#D8CDC0] border border-[#2A241E] hover:border-[#C9A25D]'
             }`}
           >
-            All Portfolios ({products.length})
+            All ({products.length})
           </button>
           {categories.map(cat => (
             <button
@@ -275,7 +275,7 @@ export const ShopPage: React.FC<ShopPageProps> = ({
               type="text"
               value={searchQuery}
               onChange={(e) => handleSearchChange(e.target.value)}
-              placeholder="Search by jewellery name, metal, or gemstone..."
+              placeholder="Search jewellery..."
               className="w-full bg-[#14120F] border border-[#2A241E] rounded-full py-2.5 pl-10 pr-8 text-xs font-sans text-[#FAF7F2] placeholder-stone-500 focus:outline-none focus:border-[#C9A25D] shadow-2xs"
             />
             <Search className="w-4 h-4 text-stone-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
@@ -333,7 +333,7 @@ export const ShopPage: React.FC<ShopPageProps> = ({
                 onChange={(e) => setSortBy(e.target.value as any)}
                 className="bg-transparent text-xs font-sans font-medium text-[#FAF7F2] focus:outline-none cursor-pointer py-1 pr-2"
               >
-                <option value="featured" className="bg-[#14120F] text-[#FAF7F2]">Featured Curations</option>
+                <option value="featured" className="bg-[#14120F] text-[#FAF7F2]">Featured</option>
                 <option value="price-low" className="bg-[#14120F] text-[#FAF7F2]">Price: Low to High</option>
                 <option value="price-high" className="bg-[#14120F] text-[#FAF7F2]">Price: High to Low</option>
                 <option value="newest" className="bg-[#14120F] text-[#FAF7F2]">Newest Additions</option>
@@ -354,7 +354,7 @@ export const ShopPage: React.FC<ShopPageProps> = ({
             <div className="flex items-center justify-between pb-4 border-b border-[#241F1A]">
               <h3 className="font-serif text-lg font-medium text-[#FAF7F2] flex items-center gap-2">
                 <SlidersHorizontal className="w-4 h-4 text-[#E5C378]" />
-                Filter Jewellery Portfolio
+                Filter Jewellery
               </h3>
               {hasActiveFilters && (
                 <button
@@ -371,21 +371,21 @@ export const ShopPage: React.FC<ShopPageProps> = ({
               {/* Metal Selection */}
               <div>
                 <label className="block text-xs font-sans uppercase tracking-widest text-[#E5C378] font-semibold mb-2">
-                  Precious Metal
+                  Material & Finish
                 </label>
                 <select
                   value={selectedMetal}
                   onChange={(e) => setSelectedMetal(e.target.value)}
                   className="w-full bg-[#181613] border border-[#2E2822] rounded-xl p-2.5 text-xs font-sans text-[#FAF7F2] focus:outline-none focus:border-[#C9A25D]"
                 >
-                  <option value="all" className="bg-[#14120F] text-[#FAF7F2]">All Metals</option>
+                  <option value="all" className="bg-[#14120F] text-[#FAF7F2]">All Materials</option>
                   {metals.filter(m => m !== 'all').map(metal => (
                     <option key={metal} value={metal} className="bg-[#14120F] text-[#FAF7F2]">{metal}</option>
                   ))}
                 </select>
               </div>
 
-              {/* Gemstone Selection */}
+              {/* Stone Selection */}
               <div>
                 <label className="block text-xs font-sans uppercase tracking-widest text-[#E5C378] font-semibold mb-2">
                   Stones
@@ -395,7 +395,7 @@ export const ShopPage: React.FC<ShopPageProps> = ({
                   onChange={(e) => setSelectedStone(e.target.value)}
                   className="w-full bg-[#181613] border border-[#2E2822] rounded-xl p-2.5 text-xs font-sans text-[#FAF7F2] focus:outline-none focus:border-[#C9A25D]"
                 >
-                  <option value="all" className="bg-[#14120F] text-[#FAF7F2]">All Gemstones</option>
+                  <option value="all" className="bg-[#14120F] text-[#FAF7F2]">All Stones</option>
                   {stones.filter(s => s !== 'all').map(stone => (
                     <option key={stone} value={stone} className="bg-[#14120F] text-[#FAF7F2]">{stone}</option>
                   ))}
@@ -455,7 +455,7 @@ export const ShopPage: React.FC<ShopPageProps> = ({
             )}
             {selectedMetal !== 'all' && (
               <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-[#181613] border border-[#2E2822] rounded-full text-xs font-sans text-[#D8CDC0]">
-                Metal: {selectedMetal}
+                Material: {selectedMetal}
                 <button onClick={() => setSelectedMetal('all')} className="hover:text-[#E5C378] cursor-pointer">
                   <X className="w-3 h-3" />
                 </button>
@@ -488,13 +488,13 @@ export const ShopPage: React.FC<ShopPageProps> = ({
 
         {/* Product Grid */}
         {isLoading ? (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 sm:gap-8">
+          <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-6 lg:gap-8">
             {Array.from({ length: 8 }).map((_, idx) => (
               <ProductCardSkeleton key={`shop-skeleton-${idx}`} />
             ))}
           </div>
         ) : filteredProducts.length > 0 ? (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 sm:gap-8">
+          <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-6 lg:gap-8">
             {filteredProducts.map((product, idx) => (
               <ProductCard key={product.id} product={product} index={idx} />
             ))}

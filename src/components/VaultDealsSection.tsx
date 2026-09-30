@@ -87,7 +87,7 @@ export const VaultDealsSection: React.FC<VaultDealsSectionProps> = ({ onNavigate
         </div>
 
         {/* Deal Cards Grid */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 sm:gap-8">
+        <div className="flex gap-4 overflow-x-auto snap-x snap-mandatory -mx-4 px-4 pb-3 sm:mx-0 sm:px-0 sm:pb-0 sm:grid sm:grid-cols-2 lg:grid-cols-3 sm:gap-8 sm:overflow-visible [scrollbar-width:none]">
           {activeDeals.map((product, idx) => {
             const isWishlisted = isInWishlist(product.id);
             const discountPercent = product.discountPercentage > 0 
@@ -103,9 +103,9 @@ export const VaultDealsSection: React.FC<VaultDealsSectionProps> = ({ onNavigate
                 whileInView={{ opacity: 1, y: 0 }}
                 viewport={{ once: true }}
                 transition={{ duration: 0.5, delay: idx * 0.1 }}
-                className="group relative bg-[#14120F] rounded-3xl border border-[#26211B] hover:border-[#C9A25D]/70 transition-all duration-300 shadow-[0_4px_30px_rgba(0,0,0,0.6)] hover:shadow-[0_12px_40px_rgba(201,162,93,0.18)] overflow-hidden flex flex-col justify-between"
+                className="group relative w-[72vw] max-w-[290px] shrink-0 snap-start sm:w-auto sm:max-w-none bg-[#14120F] rounded-3xl border border-[#26211B] hover:border-[#C9A25D]/70 transition-all duration-300 shadow-[0_4px_30px_rgba(0,0,0,0.6)] hover:shadow-[0_12px_40px_rgba(201,162,93,0.18)] overflow-hidden flex flex-col justify-between"
               >
-                {/* TOP HEADER OF CARD: Top Center AA JEWELLERS Logo Medallion */}
+                {/* Card header */}
                 <div className="relative pt-4 pb-2 px-4 flex items-center justify-between z-20">
                   {/* Left: Deal Percentage Badge */}
                   <span className="inline-flex items-center gap-1 px-2.5 py-1 bg-gradient-to-r from-[#C9A25D] to-[#E5C378] text-[#0B0A08] font-sans text-[10px] font-extrabold uppercase tracking-wider rounded-lg shadow-sm">
@@ -114,7 +114,7 @@ export const VaultDealsSection: React.FC<VaultDealsSectionProps> = ({ onNavigate
                   </span>
 
                   {/* Top-Center Brand Medallion Logo (User's Exact Logo) */}
-                  <div className="absolute left-1/2 -translate-x-1/2 top-3">
+                  <div className="hidden sm:block absolute left-1/2 -translate-x-1/2 top-3">
                     <div className="relative w-9 h-9 sm:w-10 sm:h-10 rounded-full overflow-hidden bg-[#0B0A08] border-2 border-[#C9A25D] p-0.5 shadow-[0_2px_15px_rgba(201,162,93,0.5),0_0_12px_rgba(0,0,0,0.9)] group-hover:scale-110 group-hover:border-[#E5C378] transition-transform duration-300">
                       <img loading="lazy" decoding="async" 
                         src="/logo-256.jpg" 
@@ -165,7 +165,7 @@ export const VaultDealsSection: React.FC<VaultDealsSectionProps> = ({ onNavigate
                     </span>
                   </div>
 
-                  {/* Metal Purity Tag */}
+                  {/* Material tag */}
                   <div className="absolute bottom-2.5 left-2.5 z-10">
                     <span className="px-2 py-0.5 bg-[#0B0A08]/85 text-[#E5C378] border border-[#C9A25D]/30 rounded-md text-[9px] font-sans font-medium uppercase tracking-wider backdrop-blur-xs">
                       {product.details?.metal || ''}
@@ -174,11 +174,11 @@ export const VaultDealsSection: React.FC<VaultDealsSectionProps> = ({ onNavigate
                 </div>
 
                 {/* Card Body & Pricing Details */}
-                <div className="p-5 space-y-4 flex-1 flex flex-col justify-between">
+                <div className="p-4 sm:p-5 space-y-3 sm:space-y-4 flex-1 flex flex-col justify-between">
                   <div className="space-y-1.5">
                     <div className="flex items-center justify-between text-[11px] font-sans text-stone-400">
                       <span className="uppercase tracking-widest text-[#C9A25D] font-semibold text-[10px]">
-                        {product.category}
+                        {product.category.replace(/-/g, ' ')}
                       </span>
                       <span className="text-emerald-400 font-medium flex items-center gap-1">
                         <ShieldCheck className="w-3 h-3" />
@@ -193,23 +193,13 @@ export const VaultDealsSection: React.FC<VaultDealsSectionProps> = ({ onNavigate
                       {product.name}
                     </h3>
 
-                    {/* Stock Urgency Indicator */}
-                    <div className="space-y-1 pt-1">
-                      <div className="flex justify-between text-[10px] font-sans">
-                        <span className="text-[#A89F91]">Vault Allocation:</span>
-                        <span className="text-[#E5C378] font-bold">Only {product.stock || 2} pieces left</span>
-                      </div>
-                      <div className="w-full h-1.5 bg-[#241F1A] rounded-full overflow-hidden">
-                        <div 
-                          className="h-full bg-gradient-to-r from-[#C9A25D] via-[#E5C378] to-[#C9A25D] rounded-full" 
-                          style={{ width: `${Math.min(90, Math.max(25, (10 - (product.stock || 2)) * 10))}%` }} 
-                        />
-                      </div>
-                    </div>
+                    {product.stock > 0 && product.stock <= 3 && (
+                      <p className="text-[11px] font-sans font-semibold text-amber-300 pt-1">Only {product.stock} left</p>
+                    )}
 
                     {/* Price Comparison */}
-                    <div className="pt-2 flex items-baseline gap-2.5">
-                      <span className="font-serif text-2xl font-bold text-[#E5C378]">
+                    <div className="pt-1 flex flex-wrap items-baseline gap-x-2.5 gap-y-1">
+                      <span className="font-serif text-xl sm:text-2xl font-bold text-[#E5C378]">
                         {formatPrice(product.price)}
                       </span>
                       {product.originalPrice > product.price && (
@@ -271,7 +261,7 @@ export const VaultDealsSection: React.FC<VaultDealsSectionProps> = ({ onNavigate
               onClick={() => onNavigateToShop('all')}
               className="inline-flex items-center gap-2 text-xs font-sans uppercase tracking-[0.2em] font-semibold text-[#E5C378] hover:text-[#FAF7F2] transition-colors cursor-pointer group"
             >
-              <span>Explore All Creations in Boutique Catalogue</span>
+              <span>Shop All Jewellery</span>
               <ArrowRight className="w-4 h-4 group-hover:translate-x-1.5 transition-transform" />
             </button>
           </div>

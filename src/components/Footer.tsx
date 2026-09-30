@@ -145,7 +145,7 @@ export const Footer: React.FC<FooterProps> = ({ onSelectCategory }) => {
             </ul>
           </div>
 
-          {/* Boutique Contact */}
+          {/* Contact */}
           <div className="space-y-3">
             <h4 className="font-serif text-sm font-semibold uppercase tracking-widest text-[#FAF7F2]">
               Contact
@@ -153,15 +153,15 @@ export const Footer: React.FC<FooterProps> = ({ onSelectCategory }) => {
             <div className="space-y-2.5 text-xs font-sans text-[#A89F91]">
               <p className="flex items-start gap-2">
                 <MapPin className="w-4 h-4 text-[#E5C378] shrink-0 mt-0.5" />
-                <span>{settings.address}</span>
+                <span className="break-words">{settings.address}</span>
               </p>
               <p className="flex items-center gap-2">
                 <Phone className="w-4 h-4 text-[#E5C378] shrink-0" />
-                <span>{settings.phone}</span>
+                <a href={`tel:${settings.phone.replace(/\s/g, '')}`} className="hover:text-[#E5C378]">{settings.phone}</a>
               </p>
               <p className="flex items-center gap-2">
                 <Mail className="w-4 h-4 text-[#E5C378] shrink-0" />
-                <span>{settings.email}</span>
+                <a href={`mailto:${settings.email}`} className="break-all hover:text-[#E5C378]">{settings.email}</a>
               </p>
               <p className="flex items-center gap-2 text-emerald-400">
                 <ShieldCheck className="w-4 h-4 text-emerald-400 shrink-0" />

@@ -162,7 +162,7 @@ export const ProductComparisonModal: React.FC = () => {
                   onClick={closeCompareModal}
                   className="px-6 py-2.5 bg-gradient-to-r from-[#C9A25D] to-[#E5C378] hover:brightness-110 text-[#0B0A08] text-xs font-sans font-bold uppercase tracking-wider rounded-xl transition-all cursor-pointer shadow-md"
                 >
-                  Return to Boutique Shop
+                  Back to Shop
                 </button>
               </div>
             </div>
@@ -292,7 +292,7 @@ export const ProductComparisonModal: React.FC = () => {
                             </span>
                           </div>
 
-                          {/* Precious Metal */}
+                          {/* Material */}
                           <div className={`space-y-1 pb-3 border-b border-[#241F1A] ${
                             highlightDiffs && hasDifference(p => p.details.metal) ? 'bg-[#221B10] p-2 rounded-lg' : ''
                           }`}>

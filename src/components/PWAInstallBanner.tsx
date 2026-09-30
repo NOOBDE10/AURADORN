@@ -8,7 +8,7 @@ export const PWAInstallBanner: React.FC = () => {
 
   useEffect(() => {
     // Check if dismissed previously
-    const dismissed = localStorage.getItem('aura_pwa_dismissed');
+    const dismissed = (() => { try { return localStorage.getItem('aura_pwa_dismissed'); } catch { return '1'; } })();
     if (dismissed) return;
 
     // Check iOS
@@ -16,21 +16,24 @@ export const PWAInstallBanner: React.FC = () => {
     const isIosDevice = /iphone|ipad|ipod/.test(userAgent);
     setIsIOS(isIosDevice);
 
+    // Wait before suggesting an install, so first-time visitors can shop without interruptions.
+    let promptTimer: ReturnType<typeof setTimeout> | undefined;
     const handleBeforeInstallPrompt = (e: Event) => {
       e.preventDefault();
       setDeferredPrompt(e);
-      setShowBanner(true);
+      promptTimer = setTimeout(() => setShowBanner(true), 45000);
     };
 
     window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
 
     // If on iOS and not standalone, show after 5 seconds
     if (isIosDevice && !(window.navigator as any).standalone) {
-      const timer = setTimeout(() => setShowBanner(true), 5000);
+      const timer = setTimeout(() => setShowBanner(true), 45000);
       return () => clearTimeout(timer);
     }
 
     return () => {
+      if (promptTimer) clearTimeout(promptTimer);
       window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
     };
   }, []);
@@ -48,13 +51,13 @@ export const PWAInstallBanner: React.FC = () => {
 
   const handleDismiss = () => {
     setShowBanner(false);
-    localStorage.setItem('aura_pwa_dismissed', 'true');
+    try { localStorage.setItem('aura_pwa_dismissed', 'true'); } catch { /* ignore */ }
   };
 
   if (!showBanner) return null;
 
   return (
-    <div className="fixed bottom-20 left-4 right-4 sm:left-6 sm:right-auto sm:max-w-md z-40 bg-[#1C1815] text-[#FAF8F5] p-4 rounded-2xl border border-[#C9A25D]/60 shadow-2xl backdrop-blur-md animate-in slide-in-from-bottom-5">
+    <div className="fixed bottom-24 left-3 right-3 sm:left-6 sm:right-auto sm:max-w-md z-40 bg-[#1C1815] text-[#FAF8F5] p-4 rounded-2xl border border-[#C9A25D]/60 shadow-2xl backdrop-blur-md animate-in slide-in-from-bottom-5">
       <div className="flex items-start gap-3">
         <div className="w-10 h-10 rounded-xl bg-[#C9A25D]/20 border border-[#C9A25D]/40 flex items-center justify-center shrink-0">
           <Sparkles className="w-5 h-5 text-[#C9A25D]" />
@@ -65,8 +68,8 @@ export const PWAInstallBanner: React.FC = () => {
           </h4>
           <p className="text-xs font-sans text-stone-300 mt-0.5">
             {isIOS 
-              ? 'Tap Share icon and select "Add to Home Screen" for instant luxury ordering.'
-              : 'Add to your device for instant offline access and expedited COD checkout.'}
+              ? 'Tap the Share icon, then "Add to Home Screen" to shop faster next time.'
+              : 'Add it to your home screen to shop faster next time.'}
           </p>
           <div className="flex items-center gap-2 mt-3">
             {!isIOS && deferredPrompt && (

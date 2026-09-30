@@ -109,14 +109,14 @@ export const ProductGrid: React.FC<ProductGridProps> = ({
             {selectedCategory === 'all' || !selectedCategory
               ? 'All Jewellery'
               : selectedCategory === 'new-arrivals'
-              ? 'New Arrival Masterpieces'
+              ? 'New Arrivals'
               : selectedCategory === 'sale'
               ? 'Exclusive Privileges & Discounts'
               : selectedCategory === 'exclusives'
               ? 'Featured'
               : selectedCategory === 'best-sellers'
               ? 'Signature Best Sellers'
-              : `${selectedCategory.charAt(0).toUpperCase() + selectedCategory.slice(1)} Portfolio`}
+              : selectedCategory.replace(/-/g, ' ').replace(/\b\w/g, c => c.toUpperCase())}
           </h2>
           {searchQuery && (
             <div className="flex items-center gap-2 mt-2">
@@ -262,7 +262,7 @@ export const ProductGrid: React.FC<ProductGridProps> = ({
 
       {/* Products Grid */}
       {isLoading ? (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 sm:gap-8">
+        <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-6 lg:gap-8">
           {Array.from({ length: 8 }).map((_, idx) => (
             <ProductCardSkeleton key={`skeleton-${idx}`} />
           ))}
@@ -286,7 +286,7 @@ export const ProductGrid: React.FC<ProductGridProps> = ({
           </button>
         </div>
       ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 sm:gap-8">
+        <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-6 lg:gap-8">
           {filteredProducts.map((product, idx) => (
             <ProductCard key={product.id} product={product} index={idx} />
           ))}

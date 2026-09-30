@@ -282,8 +282,8 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({ onOrderSuccess }) 
                   />
                 </div>
 
-                <div className="grid grid-cols-3 gap-3">
-                  <div>
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                  <div className="col-span-2 sm:col-span-1">
                     <label className="block text-xs font-medium text-stone-300 mb-1">
                       City *
                     </label>

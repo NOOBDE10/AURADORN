@@ -231,3 +231,10 @@ body {
   }
 }
 
+
+/* Safety net: never allow sideways scrolling on phones */
+html,
+body {
+  max-width: 100%;
+  overflow-x: clip;
+}

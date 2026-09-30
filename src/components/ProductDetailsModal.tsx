@@ -78,6 +78,7 @@ export const ProductDetailsModal: React.FC = () => {
 
   // Product reviews
   const productReviews = reviews.filter(r => r.productId === selectedProduct.id && r.status === 'approved');
+  const averageRating = productReviews.length ? productReviews.reduce((sum, r) => sum + r.rating, 0) / productReviews.length : 0;
 
   const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
     const { left, top, width, height } = e.currentTarget.getBoundingClientRect();
@@ -214,7 +215,7 @@ Please confirm availability for Cash on Delivery.`;
                 />
 
                 {/* Subtle instruction pill */}
-                <div className="absolute bottom-3 left-3 bg-black/70 backdrop-blur-xs text-[#E5C378] border border-[#C9A25D]/30 text-[11px] font-sans px-3 py-1 rounded-full pointer-events-none opacity-80 group-hover:opacity-0 transition-opacity">
+                <div className="hidden md:block absolute bottom-3 left-3 bg-black/70 backdrop-blur-xs text-[#E5C378] border border-[#C9A25D]/30 text-[11px] font-sans px-3 py-1 rounded-full pointer-events-none opacity-80 group-hover:opacity-0 transition-opacity">
                   Hover to zoom
                 </div>
 
@@ -256,21 +257,21 @@ Please confirm availability for Cash on Delivery.`;
               )}
 
               {/* Trust badges row */}
-              <div className="grid grid-cols-3 gap-3 pt-4 border-t border-[#26211B] text-center">
-                <div className="p-3 bg-[#14120F] rounded-xl border border-[#26211B]">
+              <div className="grid grid-cols-3 gap-2 sm:gap-3 pt-4 border-t border-[#26211B] text-center">
+                <div className="p-2 sm:p-3 bg-[#14120F] rounded-xl border border-[#26211B]">
                   <ShieldCheck className="w-5 h-5 text-[#E5C378] mx-auto mb-1" />
-                  <span className="text-[11px] font-sans font-medium text-[#FAF7F2] block">Quality Finish</span>
-                  <span className="text-[10px] text-stone-400">Checked before dispatch</span>
+                  <span className="text-[10px] sm:text-[11px] font-sans font-medium text-[#FAF7F2] block leading-tight">Quality Finish</span>
+                  <span className="hidden sm:block text-[10px] text-stone-400">Checked before dispatch</span>
                 </div>
-                <div className="p-3 bg-[#14120F] rounded-xl border border-[#26211B]">
+                <div className="p-2 sm:p-3 bg-[#14120F] rounded-xl border border-[#26211B]">
                   <Truck className="w-5 h-5 text-[#E5C378] mx-auto mb-1" />
-                  <span className="text-[11px] font-sans font-medium text-[#FAF7F2] block">Cash on Delivery</span>
-                  <span className="text-[10px] text-stone-400">All over Pakistan</span>
+                  <span className="text-[10px] sm:text-[11px] font-sans font-medium text-[#FAF7F2] block leading-tight">Cash on Delivery</span>
+                  <span className="hidden sm:block text-[10px] text-stone-400">All over Pakistan</span>
                 </div>
-                <div className="p-3 bg-[#14120F] rounded-xl border border-[#26211B]">
+                <div className="p-2 sm:p-3 bg-[#14120F] rounded-xl border border-[#26211B]">
                   <Award className="w-5 h-5 text-[#E5C378] mx-auto mb-1" />
-                  <span className="text-[11px] font-sans font-medium text-[#FAF7F2] block">Easy Exchange</span>
-                  <span className="text-[10px] text-stone-400">If damaged on arrival</span>
+                  <span className="text-[10px] sm:text-[11px] font-sans font-medium text-[#FAF7F2] block leading-tight">Easy Exchange</span>
+                  <span className="hidden sm:block text-[10px] text-stone-400">If damaged on arrival</span>
                 </div>
               </div>
             </div>
@@ -280,15 +281,19 @@ Please confirm availability for Cash on Delivery.`;
               <div className="space-y-4">
                 {/* Rating & Stock */}
                 <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-1.5 text-amber-400">
-                    <div className="flex">
-                      {[...Array(5)].map((_, i) => (
-                        <Star key={i} className="w-4 h-4 fill-amber-400 text-amber-400" />
-                      ))}
+                  {productReviews.length > 0 ? (
+                    <div className="flex items-center gap-1.5 text-amber-400">
+                      <div className="flex">
+                        {[1, 2, 3, 4, 5].map(i => (
+                          <Star key={i} className={`w-4 h-4 ${i <= Math.round(averageRating) ? 'fill-amber-400 text-amber-400' : 'text-stone-700'}`} />
+                        ))}
+                      </div>
+                      <span className="text-xs font-sans font-semibold text-[#FAF7F2]">{averageRating.toFixed(1)}</span>
+                      <span className="text-xs text-stone-400">({productReviews.length} {productReviews.length === 1 ? 'review' : 'reviews'})</span>
                     </div>
-                    <span className="text-xs font-sans font-semibold text-[#FAF7F2]">{selectedProduct.rating}</span>
-                    <span className="text-xs text-stone-400">({selectedProduct.reviewCount} reviews)</span>
-                  </div>
+                  ) : (
+                    <span className="text-xs text-stone-500">No reviews yet</span>
+                  )}
 
                   {selectedProduct.stock > 0 ? (
                     <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-950/70 text-emerald-300 text-xs font-medium border border-emerald-500/30">

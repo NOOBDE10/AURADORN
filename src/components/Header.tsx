@@ -198,15 +198,15 @@ export const Header: React.FC<HeaderProps> = ({
       }`}
     >
       {/* Top Announcement Bar */}
-      <div className="bg-[#050403] text-[#E6D4AF] py-2 px-4 text-xs font-sans tracking-widest text-center flex items-center justify-between border-b border-[#C9A25D]/25 transition-colors">
+      <div className="bg-[#050403] text-[#E6D4AF] py-1.5 sm:py-2 px-3 sm:px-4 text-[10px] sm:text-xs font-sans tracking-wide sm:tracking-widest text-center flex items-center justify-between gap-2 border-b border-[#C9A25D]/25 transition-colors">
         <div className="hidden md:flex items-center gap-2 text-stone-400">
           <span className="text-[#E5C378] text-[10px] tracking-widest uppercase font-semibold">{settings.brandName}</span>
           <span className="text-stone-600">·</span>
           <span className="text-[11px] text-stone-400">Artificial Jewellery</span>
         </div>
-        <div className="mx-auto flex items-center gap-2 font-medium">
-          <Sparkles className="w-3.5 h-3.5 text-[#E5C378] animate-pulse" />
-          <span>{settings.announcementText}</span>
+        <div className="mx-auto flex items-center gap-2 font-medium min-w-0">
+          <Sparkles className="hidden sm:block w-3.5 h-3.5 text-[#E5C378] animate-pulse shrink-0" />
+          <span className="truncate">{settings.announcementText}</span>
         </div>
         <div className="hidden md:flex items-center gap-4 text-stone-300">
           <button 
@@ -221,12 +221,12 @@ export const Header: React.FC<HeaderProps> = ({
 
       {/* Main Header Bar */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex items-center justify-between h-20 gap-4">
+        <div className="flex items-center justify-between h-16 sm:h-20 gap-1 sm:gap-4">
           {/* Mobile Menu Toggle Button */}
-          <div className="flex items-center lg:hidden">
+          <div className="flex items-center lg:hidden shrink-0">
             <button
               onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-              className="p-2.5 rounded-lg text-[#FAF7F2] hover:text-[#E5C378] hover:bg-[#1A1713] focus:outline-none transition-colors active:scale-95 cursor-pointer"
+              className="p-2 sm:p-2.5 rounded-lg text-[#FAF7F2] hover:text-[#E5C378] hover:bg-[#1A1713] focus:outline-none transition-colors active:scale-95 cursor-pointer"
               aria-label="Toggle Navigation Menu"
             >
               {isMobileMenuOpen ? <X className="w-6 h-6 text-[#E5C378]" /> : <Menu className="w-6 h-6" />}
@@ -234,12 +234,12 @@ export const Header: React.FC<HeaderProps> = ({
           </div>
 
           {/* Brand Logo - Navigates to Home */}
-          <div className="flex-1 lg:flex-none text-center lg:text-left">
+          <div className="flex-1 min-w-0 lg:flex-none text-left">
             <button 
               onClick={() => handleNavClick('home')} 
-              className="inline-flex items-center gap-3 group text-center lg:text-left cursor-pointer transition-transform duration-300 active:scale-[0.98]"
+              className="inline-flex max-w-full items-center gap-2 sm:gap-3 group text-left cursor-pointer transition-transform duration-300 active:scale-[0.98]"
             >
-              <div className="relative w-11 h-11 sm:w-12 sm:h-12 rounded-full overflow-hidden border-2 border-[#C9A25D] bg-[#0E0D0B] p-0.5 shadow-[0_0_20px_rgba(201,162,93,0.4)] flex items-center justify-center shrink-0 group-hover:scale-105 group-hover:border-[#E5C378] transition-all duration-300">
+              <div className="relative w-9 h-9 sm:w-12 sm:h-12 rounded-full overflow-hidden border-2 border-[#C9A25D] bg-[#0E0D0B] p-0.5 shadow-[0_0_20px_rgba(201,162,93,0.4)] flex items-center justify-center shrink-0 group-hover:scale-105 group-hover:border-[#E5C378] transition-all duration-300">
                 <img 
                   src="/logo-256.jpg" 
                   alt={settings.brandName} 
@@ -250,11 +250,11 @@ export const Header: React.FC<HeaderProps> = ({
                 />
                 <Sparkles className="w-4 h-4 text-[#E5C378] absolute pointer-events-none opacity-40 group-hover:opacity-100 transition-opacity" />
               </div>
-              <div className="text-left">
-                <span className="font-serif text-2xl sm:text-3xl font-semibold tracking-wider text-[#FAF7F2] group-hover:text-[#E5C378] transition-colors block leading-tight">
+              <div className="text-left min-w-0">
+                <span className="font-serif text-lg sm:text-2xl lg:text-3xl font-semibold tracking-wide sm:tracking-wider text-[#FAF7F2] group-hover:text-[#E5C378] transition-colors block leading-tight whitespace-nowrap truncate">
                   {settings.brandName.toUpperCase()}
                 </span>
-                <span className="text-[10px] tracking-[0.3em] uppercase text-[#C9A25D] block font-sans">
+                <span className="hidden sm:block text-[10px] tracking-[0.3em] uppercase text-[#C9A25D] font-sans truncate">
                   {settings.tagline}
                 </span>
               </div>
@@ -416,11 +416,11 @@ export const Header: React.FC<HeaderProps> = ({
           </div>
 
           {/* Action Icons */}
-          <div className="flex items-center gap-2 sm:gap-4">
+          <div className="flex items-center gap-0.5 sm:gap-2 lg:gap-4 shrink-0">
             {/* Mobile Search Toggle Icon */}
             <button
               onClick={() => setIsMobileSearchOpen(!isMobileSearchOpen)}
-              className="p-2.5 text-[#D8CDC0] hover:text-[#E5C378] hover:bg-[#1A1713] rounded-full transition-colors active:scale-95 md:hidden cursor-pointer"
+              className="p-2 sm:p-2.5 text-[#D8CDC0] hover:text-[#E5C378] hover:bg-[#1A1713] rounded-full transition-colors active:scale-95 md:hidden cursor-pointer"
               aria-label="Toggle Mobile Search"
             >
               <Search className="w-5 h-5" />
@@ -446,7 +446,7 @@ export const Header: React.FC<HeaderProps> = ({
             {/* Customer account */}
             <button
               onClick={openAccount}
-              className="p-2.5 text-[#D8CDC0] hover:text-[#E5C378] hover:bg-[#1A1713] rounded-full transition-all duration-200 relative active:scale-95 cursor-pointer"
+              className="p-2 sm:p-2.5 text-[#D8CDC0] hover:text-[#E5C378] hover:bg-[#1A1713] rounded-full transition-all duration-200 relative active:scale-95 cursor-pointer"
               aria-label={user ? 'My account' : 'Log in or create an account'}
               title={user ? 'My account' : 'Log in / Sign up'}
             >
@@ -467,7 +467,7 @@ export const Header: React.FC<HeaderProps> = ({
             {/* Wishlist Icon */}
             <button
               onClick={openWishlist}
-              className="p-2.5 text-[#D8CDC0] hover:text-[#E5C378] hover:bg-[#1A1713] rounded-full transition-all duration-200 relative active:scale-95 cursor-pointer"
+              className="hidden sm:inline-flex p-2 sm:p-2.5 text-[#D8CDC0] hover:text-[#E5C378] hover:bg-[#1A1713] rounded-full transition-all duration-200 relative active:scale-95 cursor-pointer"
               aria-label="Wishlist"
               title="Saved Wishlist"
             >
@@ -482,7 +482,7 @@ export const Header: React.FC<HeaderProps> = ({
             {/* Shopping Bag Icon */}
             <button
               onClick={openCart}
-              className="p-2.5 bg-gradient-to-r from-[#C9A25D] via-[#E5C378] to-[#C9A25D] text-[#0B0A08] font-bold rounded-full transition-all duration-300 relative shadow-[0_0_15px_rgba(201,162,93,0.3)] hover:brightness-110 flex items-center justify-center active:scale-95 cursor-pointer"
+              className="p-2 sm:p-2.5 bg-gradient-to-r from-[#C9A25D] via-[#E5C378] to-[#C9A25D] text-[#0B0A08] font-bold rounded-full transition-all duration-300 relative shadow-[0_0_15px_rgba(201,162,93,0.3)] hover:brightness-110 flex items-center justify-center active:scale-95 cursor-pointer"
               aria-label="Shopping Bag"
             >
               <ShoppingBag className="w-5 h-5" />
@@ -676,7 +676,7 @@ export const Header: React.FC<HeaderProps> = ({
                 onClick={() => handleNavClick('shop', 'sale')}
                 className="text-left px-3 py-2.5 rounded-lg bg-[#14120F] hover:bg-[#1E1B16] text-sm font-serif font-medium text-rose-300 cursor-pointer transition-colors active:scale-98 border border-[#241F1A]"
               >
-                Sale & Privileges
+                Sale
               </button>
             </div>
 
@@ -696,6 +696,19 @@ export const Header: React.FC<HeaderProps> = ({
               </button>
               <button
                 onClick={() => {
+                  openWishlist();
+                  setIsMobileMenuOpen(false);
+                }}
+                className="w-full flex items-center justify-between px-3 py-2.5 text-sm font-medium text-[#FAF7F2] hover:bg-[#181613] hover:text-[#E5C378] rounded-lg cursor-pointer transition-colors"
+              >
+                <span className="flex items-center gap-2">
+                  <Heart className="w-4 h-4 text-[#E5C378]" />
+                  Wishlist{wishlist.length > 0 ? ` (${wishlist.length})` : ''}
+                </span>
+                <ArrowRight className="w-4 h-4 text-stone-500" />
+              </button>
+              <button
+                onClick={() => {
                   openTracking();
                   setIsMobileMenuOpen(false);
                 }}
@@ -707,6 +720,7 @@ export const Header: React.FC<HeaderProps> = ({
                 </span>
                 <ArrowRight className="w-4 h-4 text-stone-500" />
               </button>
+              {isAdmin && (
               <button
                 onClick={() => {
                   openAdmin();
@@ -720,6 +734,7 @@ export const Header: React.FC<HeaderProps> = ({
                 </span>
                 <ArrowRight className="w-4 h-4 text-[#E5C378]" />
               </button>
+              )}
             </div>
           </div>
         </div>

@@ -1,5 +1,6 @@
 import React from 'react';
 import { useStore } from '../context/StoreContext';
+import { safeImageUrl } from '../lib/urls';
 import { ArrowRight, Award, ShieldCheck, Sparkles, Truck, MessageCircle } from 'lucide-react';
 import { motion } from 'motion/react';
 
@@ -24,7 +25,7 @@ export const HeroSection: React.FC<HeroSectionProps> = ({ onShopNow }) => {
         className="absolute inset-0 z-0"
       >
         <img
-          src={settings.heroBanner.image}
+          src={safeImageUrl(settings.heroBanner.image)}
           alt="Aura Adorn artificial jewellery collection"
           loading="eager"
           decoding="async"
@@ -141,7 +142,7 @@ export const HeroSection: React.FC<HeroSectionProps> = ({ onShopNow }) => {
             >
               <div className="flex items-center gap-2">
                 <ShieldCheck className="w-4 h-4 text-[#E5C378] shrink-0" />
-                <span>Cash on Delivery</span>
+                <span>Quality checked</span>
               </div>
               <div className="flex items-center gap-2">
                 <Truck className="w-4 h-4 text-[#E5C378] shrink-0" />

@@ -18,8 +18,16 @@ export const SettingsTab: React.FC<Props> = ({ settings, onSave }) => {
   const setHero = (key: keyof StoreSettings['heroBanner'], value: string) =>
     setForm(prev => ({ ...prev, heroBanner: { ...prev.heroBanner, [key]: value } }));
 
+  const [error, setError] = useState('');
+
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setError('');
+    const img = form.heroBanner.image.trim();
+    if (img && !/^https:\/\//i.test(img) && !img.startsWith('/')) {
+      setError('Banner image must be a web link starting with https:// (a file on your computer, like C:\\…, cannot be shown to customers). Upload the image to Cloudinary or Instagram and paste its link.');
+      return;
+    }
     setSaving(true);
     try {
       await onSave({ ...form, currency: 'PKR', currencySymbol: 'Rs' });
@@ -110,6 +118,7 @@ export const SettingsTab: React.FC<Props> = ({ settings, onSave }) => {
         ))}
       </section>
 
+      {error && <p className="text-rose-400">{error}</p>}
       <button type="submit" disabled={saving} className={btnGold}>{saving ? 'Saving…' : 'Save Settings'}</button>
     </form>
   );

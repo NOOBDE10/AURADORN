@@ -95,11 +95,11 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product, index = 0 }) 
         />
 
         {/* Badges Overlay */}
-        <div className="absolute top-3 left-3 flex flex-col gap-1.5 z-10">
+        <div className="absolute top-2 left-2 sm:top-3 sm:left-3 flex flex-col gap-1 sm:gap-1.5 z-10">
           <LoyaltyBadge product={product} variant="card" />
 
           {product.discountPercentage > 0 && (
-            <span className="px-2.5 py-1 bg-rose-950/90 text-rose-200 border border-rose-500/30 font-sans text-[11px] font-semibold tracking-wider uppercase rounded-md shadow-xs pointer-events-none w-fit">
+            <span className="px-1.5 sm:px-2.5 py-0.5 sm:py-1 bg-rose-950/90 text-rose-200 border border-rose-500/30 font-sans text-[10px] sm:text-[11px] font-semibold tracking-wider uppercase rounded-md shadow-xs pointer-events-none w-fit">
               -{product.discountPercentage}%
             </span>
           )}
@@ -116,7 +116,7 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product, index = 0 }) 
         </div>
 
         {/* Luxury Brand Logo Crest at Top Center */}
-        <div className="absolute top-2.5 left-1/2 -translate-x-1/2 z-10 pointer-events-none">
+        <div className="hidden sm:block absolute top-2.5 left-1/2 -translate-x-1/2 z-10 pointer-events-none">
           <div className="relative w-8 h-8 sm:w-9 sm:h-9 rounded-full bg-[#0B0A08] border-2 border-[#C9A25D] p-0.5 shadow-[0_2px_15px_rgba(201,162,93,0.4),0_0_12px_rgba(0,0,0,0.9)] flex items-center justify-center group-hover:border-[#E5C378] group-hover:scale-110 transition-all duration-300">
             <img loading="lazy" decoding="async" 
               src="/logo-256.jpg" 
@@ -136,7 +136,7 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product, index = 0 }) 
           whileTap={{ scale: 0.8 }}
           onClick={handleWishlist}
           aria-label={isWishlisted ? 'Remove from wishlist' : 'Save to wishlist'}
-          className={`absolute top-3 right-3 p-2 rounded-full backdrop-blur-md transition-colors duration-200 z-10 cursor-pointer shadow-xs border ${
+          className={`absolute top-2 right-2 sm:top-3 sm:right-3 p-1.5 sm:p-2 rounded-full backdrop-blur-md transition-colors duration-200 z-10 cursor-pointer shadow-xs border ${
             isWishlisted 
               ? 'bg-rose-950/80 text-rose-400 border-rose-500/40' 
               : 'bg-[#0B0A08]/75 text-stone-300 hover:bg-[#181613] hover:text-[#E5C378] border-[#2A241E]'
@@ -152,7 +152,7 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product, index = 0 }) 
           onClick={handleToggleCompare}
           aria-label={isCompared ? 'Remove from side-by-side comparison' : 'Compare specifications side-by-side'}
           title={isCompared ? 'Remove from comparison' : 'Compare specifications side-by-side'}
-          className={`absolute top-12 right-3 p-2 rounded-full backdrop-blur-md transition-colors duration-200 z-10 cursor-pointer shadow-xs border ${
+          className={`hidden sm:block absolute top-12 right-3 p-2 rounded-full backdrop-blur-md transition-colors duration-200 z-10 cursor-pointer shadow-xs border ${
             isCompared 
               ? 'bg-[#E5C378] text-[#0B0A08] border-[#E5C378] shadow-sm' 
               : 'bg-[#0B0A08]/75 text-stone-300 hover:bg-[#181613] hover:text-[#E5C378] border-[#2A241E]'
@@ -192,56 +192,61 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product, index = 0 }) 
       </div>
 
       {/* Product Details Area */}
-      <div className="p-4 sm:p-5 flex-1 flex flex-col justify-between space-y-3">
+      <div className="p-3 sm:p-5 flex-1 flex flex-col justify-between space-y-2 sm:space-y-3">
         <div>
           {/* Category & Rating */}
           <div className="flex items-center justify-between text-xs text-[#A89F91] mb-1">
-            <span className="uppercase tracking-widest font-sans font-medium text-[10px] text-[#E5C378]">
-              {product.category}
+            <span className="uppercase tracking-wider sm:tracking-widest font-sans font-medium text-[9px] sm:text-[10px] text-[#E5C378] truncate">
+              {product.category.replace(/-/g, ' ')}
             </span>
-            <div className="flex items-center gap-1 text-amber-400">
+            {product.reviewCount > 0 && <div className="hidden sm:flex items-center gap-1 text-amber-400">
               <Star className="w-3 h-3 fill-amber-400 text-amber-400" />
               <span className="font-sans font-medium text-[#FAF7F2] text-xs">{product.rating}</span>
               <span className="text-stone-400 text-[10px]">({product.reviewCount})</span>
-            </div>
+            </div>}
           </div>
 
           {/* Product Name */}
-          <h3 className="font-serif text-base sm:text-lg text-[#FAF7F2] font-medium line-clamp-1 group-hover:text-[#E5C378] transition-colors duration-300">
+          <h3 className="font-serif text-sm sm:text-lg leading-snug text-[#FAF7F2] font-medium line-clamp-2 sm:line-clamp-1 group-hover:text-[#E5C378] transition-colors duration-300">
             {product.name}
           </h3>
 
           {/* Metal/Stone Specs preview */}
-          <p className="text-xs text-[#8C8275] font-sans truncate mt-0.5">
+          <p className="hidden sm:block text-xs text-[#8C8275] font-sans truncate mt-0.5">
             {product.details.metal} {product.details.stone ? `· ${product.details.stone}` : ''}
           </p>
         </div>
 
         {/* Pricing & Stock Status */}
         <div className="pt-2 border-t border-[#241F1A]">
-          <div className="flex items-baseline gap-2 mb-3">
-            <span className="font-serif text-lg sm:text-xl font-semibold text-[#E5C378]">
+          <div className="flex flex-wrap items-baseline gap-x-2 gap-y-1 mb-2 sm:mb-3">
+            <span className="font-serif text-base sm:text-xl font-semibold text-[#E5C378]">
               {formatPrice(product.price)}
             </span>
             {product.originalPrice > product.price && (
-              <span className="font-sans text-xs text-stone-500 line-through">
+              <span className="font-sans text-[11px] sm:text-xs text-stone-500 line-through">
                 {formatPrice(product.originalPrice)}
               </span>
             )}
+            {product.stock <= 0 && (
+              <span className="text-[10px] text-stone-300 font-sans font-medium bg-stone-900 border border-stone-700 px-1.5 py-0.5 rounded">
+                Sold out
+              </span>
+            )}
             {product.stock <= 3 && product.stock > 0 && (
-              <span className="ml-auto text-[10px] text-amber-300 font-sans font-medium bg-amber-950/80 border border-amber-500/30 px-1.5 py-0.5 rounded">
+              <span className="sm:ml-auto text-[10px] text-amber-300 font-sans font-medium bg-amber-950/80 border border-amber-500/30 px-1.5 py-0.5 rounded">
                 Only {product.stock} left
               </span>
             )}
           </div>
 
           {/* Dual Action Buttons: Add to Bag & Buy Now (COD) with micro-interactions */}
-          <div className="grid grid-cols-2 gap-2">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
             <motion.button
               whileTap={{ scale: 0.94 }}
               onClick={handleAddToCart}
-              disabled={product.stock === 0}
-              className={`py-2.5 px-3 font-sans text-xs font-semibold rounded-lg transition-all duration-200 flex items-center justify-center gap-1.5 cursor-pointer disabled:opacity-50 ${
+              disabled={product.stock <= 0}
+              className={`py-2 sm:py-2.5 px-2 sm:px-3 font-sans text-[11px] sm:text-xs font-semibold rounded-lg whitespace-nowrap transition-all duration-200 flex items-center justify-center gap-1.5 cursor-pointer disabled:opacity-50 ${
                 justAdded 
                   ? 'bg-emerald-600 text-white border border-emerald-500 shadow-xs' 
                   : 'bg-[#181613] hover:bg-[#221E19] text-[#FAF7F2] border border-[#2E2822] hover:border-[#C9A25D]'
@@ -263,8 +268,8 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product, index = 0 }) 
             <motion.button
               whileTap={{ scale: 0.94 }}
               onClick={handleBuyNow}
-              disabled={product.stock === 0}
-              className="py-2.5 px-3 bg-gradient-to-r from-[#C9A25D] via-[#E5C378] to-[#C9A25D] hover:brightness-110 text-[#0B0A08] font-sans text-xs font-bold rounded-lg transition-all duration-200 flex items-center justify-center gap-1.5 cursor-pointer shadow-[0_2px_12px_rgba(201,162,93,0.25)] disabled:opacity-50"
+              disabled={product.stock <= 0}
+              className="hidden sm:flex py-2.5 px-3 bg-gradient-to-r from-[#C9A25D] via-[#E5C378] to-[#C9A25D] hover:brightness-110 text-[#0B0A08] font-sans text-xs font-bold rounded-lg transition-all duration-200 flex items-center justify-center gap-1.5 cursor-pointer shadow-[0_2px_12px_rgba(201,162,93,0.25)] disabled:opacity-50"
             >
               <Zap className="w-3.5 h-3.5 text-[#0B0A08]" />
               <span>Buy Now</span>

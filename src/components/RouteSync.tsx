@@ -60,8 +60,11 @@ export const RouteSync: React.FC = () => {
 
   // State → URL. The page the product was opened from is kept as `state.background`,
   // so it stays rendered (and keeps its scroll position) behind the product view.
+  const prevSelectedId = useRef<string | null>(null);
   useEffect(() => {
     const background = (location.state as { background?: unknown } | null)?.background;
+    const wasOpen = prevSelectedId.current !== null;
+    prevSelectedId.current = selectedProduct?.id ?? null;
     if (selectedProduct) {
       const target = productPath(selectedProduct);
       if (location.pathname !== target) {
@@ -70,7 +73,8 @@ export const RouteSync: React.FC = () => {
           state: { background: routeProductId ? background : location },
         });
       }
-    } else if (routeProductId) {
+    } else if (routeProductId && wasOpen) {
+      // Only when the product view was closed, not on first load while products are still loading.
       navigate(backgroundPath.current || '/shop');
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
