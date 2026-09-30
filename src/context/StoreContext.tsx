@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useState, useEffect, useCallback, useMemo, ReactNode } from 'react';
 import type { User } from 'firebase/auth';
-import { getAuthLazy, ADMIN_SESSION_FLAG } from '../firebase/config';
-import { Product, Category, CartItem, Order, OrderStatus, Review, StoreSettings } from '../types';
+import { getAuthLazy, AUTH_SESSION_FLAG, LEGACY_ADMIN_SESSION_FLAG } from '../firebase/config';
+import { Product, Category, CartItem, Order, OrderStatus, Review, StoreSettings, CustomerProfile } from '../types';
 import {
   checkIsAdmin,
   fetchProducts,
@@ -19,6 +19,9 @@ import {
   saveCategory,
   removeCategory,
   saveStoreSettings,
+  fetchCustomerProfile,
+  saveCustomerProfile,
+  fetchMyOrders,
 } from '../services/storeService';
 import { INITIAL_SETTINGS, INITIAL_CATEGORIES } from '../data/initialData';
 
@@ -64,6 +67,19 @@ interface StoreContextType {
   quickViewProduct: Product | null;
   trackingOrderId: string | null;
   trackingPhone: string | null;
+
+  // Customer accounts (email + password)
+  customerProfile: CustomerProfile | null;
+  myOrders: Order[];
+  isAccountOpen: boolean;
+  openAccount: () => void;
+  closeAccount: () => void;
+  customerSignUp: (name: string, email: string, password: string) => Promise<void>;
+  customerLogin: (email: string, password: string) => Promise<void>;
+  customerLogout: () => Promise<void>;
+  sendPasswordReset: (email: string) => Promise<void>;
+  updateCustomerProfile: (changes: Partial<Pick<CustomerProfile, 'name' | 'phone' | 'defaultAddress'>>) => Promise<void>;
+  refreshMyOrders: () => Promise<void>;
 
   adminLogin: (email: string, password: string) => Promise<void>;
   adminLogout: () => Promise<void>;
@@ -150,6 +166,9 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
 
   const [user, setUser] = useState<User | null>(null);
   const [isAdmin, setIsAdmin] = useState(false);
+  const [customerProfile, setCustomerProfile] = useState<CustomerProfile | null>(null);
+  const [myOrders, setMyOrders] = useState<Order[]>([]);
+  const [isAccountOpen, setIsAccountOpen] = useState(false);
   const [toasts, setToasts] = useState<Toast[]>([]);
 
   const [isCartOpen, setIsCartOpen] = useState(false);
@@ -177,7 +196,7 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
   // Firebase Auth is only loaded for returning admins (flag set at sign-in) or when the admin panel opens.
   const [authWanted, setAuthWanted] = useState<boolean>(() => {
     try {
-      return localStorage.getItem(ADMIN_SESSION_FLAG) === '1';
+      return localStorage.getItem(AUTH_SESSION_FLAG) === '1' || localStorage.getItem(LEGACY_ADMIN_SESSION_FLAG) === '1';
     } catch {
       return false;
     }
@@ -192,7 +211,18 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
       if (cancelled) return;
       unsubscribe = onAuthStateChanged(auth, async currentUser => {
         setUser(currentUser);
-        setIsAdmin(currentUser ? await checkIsAdmin(currentUser.uid) : false);
+        if (!currentUser) {
+          setIsAdmin(false);
+          setCustomerProfile(null);
+          setMyOrders([]);
+          return;
+        }
+        const [admin, profile] = await Promise.all([
+          checkIsAdmin(currentUser.uid),
+          fetchCustomerProfile(currentUser.uid).catch(() => null),
+        ]);
+        setIsAdmin(admin);
+        setCustomerProfile(profile);
       });
     })();
     return () => {
@@ -262,6 +292,31 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
       return JSON.stringify(next) === JSON.stringify(prev) ? prev : next;
     });
   }, [products, isLoading, loadError]);
+
+  // Wishlist sync for signed-in customers: merge the saved list once, then save changes.
+  const wishlistMergedFor = React.useRef<string | null>(null);
+  useEffect(() => {
+    if (!user || !customerProfile || wishlistMergedFor.current === user.uid) return;
+    wishlistMergedFor.current = user.uid;
+    setWishlist(prev => Array.from(new Set([...(customerProfile.wishlist || []), ...prev])).slice(0, 200));
+  }, [user, customerProfile]);
+
+  useEffect(() => {
+    if (!user || !customerProfile || wishlistMergedFor.current !== user.uid) return;
+    const saved = customerProfile.wishlist || [];
+    if (saved.length === wishlist.length && saved.every(id => wishlist.includes(id))) return;
+    const t = setTimeout(() => {
+      const next = { ...customerProfile, wishlist };
+      saveCustomerProfile(next)
+        .then(() => setCustomerProfile(next))
+        .catch(e => console.warn('Wishlist sync failed', e));
+    }, 800);
+    return () => clearTimeout(t);
+  }, [wishlist, user, customerProfile]);
+
+  useEffect(() => {
+    if (!user) wishlistMergedFor.current = null;
+  }, [user]);
 
   // ---------------- Cart ----------------
 
@@ -366,7 +421,12 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
   }, [cart, settings.deliveryCharge, settings.freeDeliveryThreshold]);
 
   const handlePlaceOrder = async (request: PlaceOrderRequest): Promise<Order> => {
-    const newOrder = await placeOrder(request);
+    const idToken = user ? await user.getIdToken().catch(() => null) : null;
+    const newOrder = await placeOrder(request, idToken);
+    if (user) {
+      refreshMyOrders();
+      if (request.saveAddress) fetchCustomerProfile(user.uid).then(p => p && setCustomerProfile(p)).catch(() => undefined);
+    }
     clearCart();
     showToast(`Order ${newOrder.id} placed successfully!`, 'gold');
     loadData(); // refresh stock counts
@@ -374,6 +434,133 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
   };
 
   // ---------------- Admin ----------------
+
+  const markSession = (on: boolean) => {
+    try {
+      if (on) localStorage.setItem(AUTH_SESSION_FLAG, '1');
+      else {
+        localStorage.removeItem(AUTH_SESSION_FLAG);
+        localStorage.removeItem(LEGACY_ADMIN_SESSION_FLAG);
+      }
+    } catch {
+      // storage unavailable
+    }
+  };
+
+  const authErrorMessage = (e: unknown): string => {
+    const code = (e as { code?: string })?.code || '';
+    if (code.includes('email-already-in-use')) return 'An account with this email already exists. Please log in instead.';
+    if (code.includes('invalid-email')) return 'Please enter a valid email address.';
+    if (code.includes('weak-password')) return 'Password must be at least 6 characters.';
+    if (code.includes('too-many-requests')) return 'Too many attempts. Please wait a few minutes and try again.';
+    if (code.includes('network-request-failed')) return 'Network error. Please check your internet connection.';
+    if (code.includes('invalid-credential') || code.includes('wrong-password') || code.includes('user-not-found')) {
+      return 'Incorrect email or password.';
+    }
+    return 'Something went wrong. Please try again.';
+  };
+
+  const refreshMyOrders = useCallback(async () => {
+    if (!user) {
+      setMyOrders([]);
+      return;
+    }
+    try {
+      setMyOrders(await fetchMyOrders(user.uid));
+    } catch (e) {
+      console.warn('Could not load my orders', e);
+    }
+  }, [user]);
+
+  useEffect(() => {
+    if (user && isAccountOpen) refreshMyOrders();
+  }, [user, isAccountOpen, refreshMyOrders]);
+
+  const customerSignUp = async (name: string, email: string, password: string) => {
+    const [{ createUserWithEmailAndPassword, updateProfile, sendEmailVerification }, auth] = await Promise.all([
+      import('firebase/auth'),
+      getAuthLazy(),
+    ]);
+    let cred;
+    try {
+      cred = await createUserWithEmailAndPassword(auth, email.trim(), password);
+    } catch (e) {
+      throw new Error(authErrorMessage(e));
+    }
+    const cleanName = name.trim().slice(0, 150);
+    await updateProfile(cred.user, { displayName: cleanName }).catch(() => undefined);
+    const profile: CustomerProfile = {
+      id: cred.user.uid,
+      name: cleanName,
+      email: cred.user.email || email.trim(),
+      wishlist,
+      createdAt: new Date().toISOString(),
+    };
+    await saveCustomerProfile(profile).catch(e => console.error('Profile create failed', e));
+    sendEmailVerification(cred.user).catch(() => undefined);
+    setUser(cred.user);
+    setCustomerProfile(profile);
+    setAuthWanted(true);
+    markSession(true);
+    showToast(`Welcome, ${cleanName}! Your account is ready.`, 'gold');
+  };
+
+  const customerLogin = async (email: string, password: string) => {
+    const [{ signInWithEmailAndPassword }, auth] = await Promise.all([import('firebase/auth'), getAuthLazy()]);
+    let cred;
+    try {
+      cred = await signInWithEmailAndPassword(auth, email.trim(), password);
+    } catch (e) {
+      throw new Error(authErrorMessage(e));
+    }
+    setUser(cred.user);
+    const [admin, profile] = await Promise.all([
+      checkIsAdmin(cred.user.uid),
+      fetchCustomerProfile(cred.user.uid).catch(() => null),
+    ]);
+    setIsAdmin(admin);
+    setCustomerProfile(profile);
+    setAuthWanted(true);
+    markSession(true);
+    showToast(`Welcome back${profile?.name ? `, ${profile.name}` : ''}!`, 'gold');
+  };
+
+  const customerLogout = async () => {
+    const [{ signOut }, auth] = await Promise.all([import('firebase/auth'), getAuthLazy()]);
+    await signOut(auth);
+    markSession(false);
+    setIsAdmin(false);
+    setCustomerProfile(null);
+    setMyOrders([]);
+    showToast('You have logged out.', 'info');
+  };
+
+  const sendPasswordReset = async (email: string) => {
+    const [{ sendPasswordResetEmail }, auth] = await Promise.all([import('firebase/auth'), getAuthLazy()]);
+    try {
+      await sendPasswordResetEmail(auth, email.trim());
+    } catch (e) {
+      const code = (e as { code?: string })?.code || '';
+      // Don't reveal whether an account exists for this email.
+      if (!code.includes('user-not-found')) throw new Error(authErrorMessage(e));
+    }
+  };
+
+  const updateCustomerProfile = async (changes: Partial<Pick<CustomerProfile, 'name' | 'phone' | 'defaultAddress'>>) => {
+    if (!user) throw new Error('Please log in first.');
+    const next: CustomerProfile = {
+      id: user.uid,
+      name: user.displayName || '',
+      email: user.email || '',
+      wishlist,
+      createdAt: new Date().toISOString(),
+      ...(customerProfile || {}),
+      ...changes,
+    };
+    await saveCustomerProfile(next);
+    setCustomerProfile(next);
+    showToast('Your details have been saved.', 'gold');
+  };
 
   const adminLogin = async (email: string, password: string) => {
     const [{ signInWithEmailAndPassword, signOut }, auth] = await Promise.all([import('firebase/auth'), getAuthLazy()]);
@@ -392,7 +579,7 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
     setUser(cred.user);
     setAuthWanted(true);
     try {
-      localStorage.setItem(ADMIN_SESSION_FLAG, '1');
+      localStorage.setItem(AUTH_SESSION_FLAG, '1');
     } catch {
       // ignore
     }
@@ -403,7 +590,8 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
     const [{ signOut }, auth] = await Promise.all([import('firebase/auth'), getAuthLazy()]);
     await signOut(auth);
     try {
-      localStorage.removeItem(ADMIN_SESSION_FLAG);
+      localStorage.removeItem(AUTH_SESSION_FLAG);
+      localStorage.removeItem(LEGACY_ADMIN_SESSION_FLAG);
     } catch {
       // ignore
     }
@@ -566,6 +754,21 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
         isInCompare,
         openCompareModal: () => setIsCompareModalOpen(true),
         closeCompareModal: () => setIsCompareModalOpen(false),
+
+        customerProfile,
+        myOrders,
+        isAccountOpen,
+        openAccount: () => {
+          setAuthWanted(true);
+          setIsAccountOpen(true);
+        },
+        closeAccount: () => setIsAccountOpen(false),
+        customerSignUp,
+        customerLogin,
+        customerLogout,
+        sendPasswordReset,
+        updateCustomerProfile,
+        refreshMyOrders,
 
         adminLogin,
         adminLogout,

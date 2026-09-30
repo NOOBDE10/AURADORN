@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useStore } from '../context/StoreContext';
 import { Link } from 'react-router-dom';
 import { formatPrice } from '../lib/format';
@@ -26,7 +26,10 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({ onOrderSuccess }) 
     cart, 
     cartSummary, 
     handlePlaceOrder, 
-    settings
+    settings,
+    user,
+    customerProfile,
+    openAccount
   } = useStore();
 
   const [formData, setFormData] = useState({
@@ -40,6 +43,24 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({ onOrderSuccess }) 
     notes: '',
     website: '' // honeypot, hidden from real users
   });
+
+  const [saveAddress, setSaveAddress] = useState(true);
+
+  // Logged-in customers: prefill empty fields from their account.
+  useEffect(() => {
+    if (!user) return;
+    const a = customerProfile?.defaultAddress;
+    setFormData(prev => ({
+      ...prev,
+      customerName: prev.customerName || a?.name || customerProfile?.name || user.displayName || '',
+      phone: prev.phone || a?.phone || customerProfile?.phone || '',
+      email: prev.email || user.email || '',
+      address: prev.address || a?.address || '',
+      city: prev.city || a?.city || '',
+      area: prev.area || a?.area || '',
+      postalCode: prev.postalCode || a?.postalCode || '',
+    }));
+  }, [user, customerProfile]);
 
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
@@ -86,6 +107,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({ onOrderSuccess }) 
         postalCode: formData.postalCode.trim(),
         notes: formData.notes.trim(),
         website: formData.website,
+        saveAddress: Boolean(user) && saveAddress,
         items: cart.map(item => ({
           productId: item.product.id,
           quantity: item.quantity,
@@ -171,6 +193,21 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({ onOrderSuccess }) 
                 aria-hidden="true"
                 className="hidden"
               />
+
+              {/* Account prompt / status */}
+              {user ? (
+                <p className="text-xs text-[#A89F91]">
+                  Ordering as <span className="text-[#E5C378]">{user.email}</span>. This order will appear in My Account.
+                </p>
+              ) : (
+                <p className="text-xs text-[#A89F91]">
+                  Have an account?{' '}
+                  <button type="button" onClick={openAccount} className="text-[#E5C378] font-semibold hover:underline cursor-pointer">
+                    Log in
+                  </button>{' '}
+                  to fill in your details and track orders in one place, or simply continue as a guest.
+                </p>
+              )}
 
               {/* Recipient Details */}
               <div className="space-y-3">
@@ -301,6 +338,12 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({ onOrderSuccess }) 
                     className="w-full bg-[#14120F] border border-[#26211B] rounded-xl p-3 text-sm text-[#FAF7F2] placeholder-stone-500 focus:outline-none focus:border-[#C9A25D]"
                   />
                 </div>
+                {user && (
+                  <label className="flex items-center gap-2 text-xs text-stone-300 cursor-pointer">
+                    <input type="checkbox" className="accent-[#C9A25D]" checked={saveAddress} onChange={e => setSaveAddress(e.target.checked)} />
+                    Save this address to my account for next time
+                  </label>
+                )}
               </div>
             </div>
 

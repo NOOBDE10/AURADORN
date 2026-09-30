@@ -26,6 +26,8 @@ export const RouteSync: React.FC = () => {
     openAdmin,
     isTrackingOpen,
     openTracking,
+    isAccountOpen,
+    openAccount,
     settings,
     showToast,
   } = useStore();
@@ -78,6 +80,7 @@ export const RouteSync: React.FC = () => {
   useEffect(() => {
     if (location.pathname === '/admin' && !isAdminOpen) openAdmin();
     if (location.pathname === '/track' && !isTrackingOpen) openTracking();
+    if (location.pathname === '/account' && !isAccountOpen) openAccount();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [location.pathname]);
 
@@ -85,6 +88,11 @@ export const RouteSync: React.FC = () => {
     if (!isAdminOpen && location.pathname === '/admin') navigate('/', { replace: true });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isAdminOpen]);
+
+  useEffect(() => {
+    if (!isAccountOpen && location.pathname === '/account') navigate('/', { replace: true });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isAccountOpen]);
 
   useEffect(() => {
     if (!isTrackingOpen && location.pathname === '/track') navigate('/', { replace: true });

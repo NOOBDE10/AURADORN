@@ -30,6 +30,7 @@ const OrderSuccessModal = lazy(() => import('./components/OrderSuccessModal').th
 const OrderTrackingModal = lazy(() => import('./components/OrderTrackingModal').then(m => ({ default: m.OrderTrackingModal })));
 const QuickViewModal = lazy(() => import('./components/QuickViewModal').then(m => ({ default: m.QuickViewModal })));
 const ProductComparisonModal = lazy(() => import('./components/ProductComparisonModal').then(m => ({ default: m.ProductComparisonModal })));
+const CustomerAccountModal = lazy(() => import('./components/CustomerAccountModal').then(m => ({ default: m.CustomerAccountModal })));
 const PoliciesPage = lazy(() => import('./components/PoliciesPage').then(m => ({ default: m.PoliciesPage })));
 
 const HomePage: React.FC<{ searchQuery: string; onClearSearch: () => void; goToShop: (slug?: string) => void }> = ({
@@ -116,6 +117,7 @@ export function MainStore() {
   const location = useLocation();
   const {
     isAdminOpen,
+    isAccountOpen,
     isCheckoutOpen,
     isTrackingOpen,
     quickViewProduct,
@@ -161,6 +163,7 @@ export function MainStore() {
             <Route path="/policies" element={<Navigate to="/policies/shipping" replace />} />
             <Route path="/policies/:page" element={<PoliciesPage />} />
             <Route path="/admin" element={<HomePage searchQuery={searchQuery} onClearSearch={() => setSearchQuery('')} goToShop={goToShop} />} />
+            <Route path="/account" element={<HomePage searchQuery={searchQuery} onClearSearch={() => setSearchQuery('')} goToShop={goToShop} />} />
             <Route path="/track" element={<HomePage searchQuery={searchQuery} onClearSearch={() => setSearchQuery('')} goToShop={goToShop} />} />
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
@@ -180,6 +183,7 @@ export function MainStore() {
         {completedOrder && <OrderSuccessModal order={completedOrder} onClose={() => setCompletedOrder(null)} />}
         {isTrackingOpen && <OrderTrackingModal />}
         {isAdminOpen && <AdminDashboard />}
+        {isAccountOpen && <CustomerAccountModal />}
       </Suspense>
 
       <ProductCompareBar />

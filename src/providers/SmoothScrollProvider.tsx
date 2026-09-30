@@ -33,6 +33,7 @@ export const SmoothScrollProvider: React.FC<SmoothScrollProviderProps> = ({ chil
     isCheckoutOpen,
     isTrackingOpen,
     isAdminOpen,
+    isAccountOpen,
     isCompareModalOpen,
     selectedProduct,
     quickViewProduct,
@@ -44,6 +45,7 @@ export const SmoothScrollProvider: React.FC<SmoothScrollProviderProps> = ({ chil
     isCheckoutOpen ||
     isTrackingOpen ||
     isAdminOpen ||
+    isAccountOpen ||
     isCompareModalOpen ||
     selectedProduct ||
     quickViewProduct

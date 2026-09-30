@@ -12,7 +12,7 @@ import {
   arrayUnion,
 } from 'firebase/firestore/lite';
 import { app, db } from '../firebase/config';
-import { Product, Category, Order, OrderStatus, Review, StoreSettings, NewsletterSubscriber } from '../types';
+import { Product, Category, Order, OrderStatus, Review, StoreSettings, NewsletterSubscriber, CustomerProfile } from '../types';
 import { INITIAL_CATEGORIES, INITIAL_SETTINGS } from '../data/initialData';
 
 /** Recursively strips `undefined` values, which Firestore rejects. */
@@ -109,14 +109,17 @@ export interface PlaceOrderRequest {
   postalCode?: string;
   notes?: string;
   items: Array<{ productId: string; quantity: number; option?: string }>;
+  /** Signed-in customers: save this address to their account for next time. */
+  saveAddress?: boolean;
+  website?: string;
 }
 
-async function callFunction<T>(name: string, body: unknown): Promise<T> {
+async function callFunction<T>(name: string, body: unknown, idToken?: string | null): Promise<T> {
   let res: Response;
   try {
     res = await fetch(`/api/${name}`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', ...(idToken ? { Authorization: `Bearer ${idToken}` } : {}) },
       body: JSON.stringify(body),
     });
   } catch {
@@ -130,8 +133,8 @@ async function callFunction<T>(name: string, body: unknown): Promise<T> {
 }
 
 /** Order is validated, priced and saved on the server (api/place-order.ts). */
-export async function placeOrder(request: PlaceOrderRequest): Promise<Order> {
-  const { order } = await callFunction<{ order: Order }>('place-order', request);
+export async function placeOrder(request: PlaceOrderRequest, idToken?: string | null): Promise<Order> {
+  const { order } = await callFunction<{ order: Order }>('place-order', request, idToken);
   return order;
 }
 
@@ -191,6 +194,29 @@ export async function updateOrder(
     });
   }
   await updateDoc(doc(db, 'orders', orderId), update);
+}
+
+// ---------------- CUSTOMERS ----------------
+
+export async function fetchCustomerProfile(uid: string): Promise<CustomerProfile | null> {
+  const snap = await getDoc(doc(db, 'customers', uid));
+  return snap.exists() ? ({ id: snap.id, wishlist: [], ...(snap.data() as Partial<CustomerProfile>) } as CustomerProfile) : null;
+}
+
+export async function saveCustomerProfile(profile: CustomerProfile): Promise<void> {
+  await setDoc(
+    doc(db, 'customers', profile.id),
+    sanitizeForFirestore({ ...profile, updatedAt: new Date().toISOString() }),
+    { merge: true }
+  );
+}
+
+/** A signed-in customer's own orders (allowed by the security rules), newest first. */
+export async function fetchMyOrders(uid: string): Promise<Order[]> {
+  const snapshot = await getDocs(query(collection(db, 'orders'), where('customerId', '==', uid)));
+  const orders: Order[] = [];
+  snapshot.forEach(d => orders.push({ id: d.id, ...d.data() } as Order));
+  return orders.sort((a, b) => b.createdAt.localeCompare(a.createdAt));
 }
 
 // ---------------- REVIEWS ----------------

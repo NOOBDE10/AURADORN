@@ -41,9 +41,24 @@ service cloud.firestore {
       allow write: if isAdmin();
     }
 
-    // Orders are created and looked up only by the server functions (service account).
+    // Orders are created only by the server function (service account).
+    // Admins manage all orders; a signed-in customer can read their own orders.
     match /orders/{orderId} {
       allow read, update, delete: if isAdmin();
+      allow read: if isSignedIn() && resource.data.customerId == request.auth.uid;
+    }
+
+    // Customer profiles: only the customer themselves (or an admin) can read/write.
+    match /customers/{uid} {
+      allow read: if (isSignedIn() && request.auth.uid == uid) || isAdmin();
+      allow create, update: if isSignedIn() && request.auth.uid == uid
+        && request.resource.data.keys().hasOnly(['id', 'name', 'email', 'phone', 'defaultAddress', 'wishlist', 'createdAt', 'updatedAt'])
+        && request.resource.data.id == uid
+        && request.resource.data.name is string && request.resource.data.name.size() <= 150
+        && (!('phone' in request.resource.data) || (request.resource.data.phone is string && request.resource.data.phone.size() <= 30))
+        && (!('wishlist' in request.resource.data) || (request.resource.data.wishlist is list && request.resource.data.wishlist.size() <= 200))
+        && (!('defaultAddress' in request.resource.data) || request.resource.data.defaultAddress is map);
+      allow delete: if isAdmin();
     }
 
     match /reviews/{reviewId} {

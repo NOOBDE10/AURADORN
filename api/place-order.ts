@@ -1,5 +1,6 @@
 
 import { db, json, phoneKey } from './_lib/firebase.js';
+import { getAuth } from 'firebase-admin/auth';
 import { sendOrderAlert } from './_lib/email.js';
 
 interface ItemRequest { productId: string; quantity: number; option?: string }
@@ -38,6 +39,18 @@ export async function POST(req: Request): Promise<Response> {
   const postalCode = str(body.postalCode, 20);
   const notes = str(body.notes, 1000);
   const items = Array.isArray(body.items) ? (body.items as ItemRequest[]) : [];
+  const saveAddress = body.saveAddress === true;
+
+  // Optional: a signed-in customer sends their Firebase ID token; the order is linked to their account.
+  let customerId: string | null = null;
+  const authHeader = req.headers.get('authorization') || '';
+  if (authHeader.startsWith('Bearer ')) {
+    try {
+      customerId = (await getAuth().verifyIdToken(authHeader.slice(7))).uid;
+    } catch {
+      return json({ error: 'Your login session has expired. Please log in again or check out as a guest.' }, 401);
+    }
+  }
 
   if (customerName.length < 2) return json({ error: 'Please enter your full name.' }, 400);
   if (!/^3\d{9}$/.test(phoneKey(phone)) || phone.replace(/\D/g, '').length > 12) {
@@ -109,6 +122,7 @@ export async function POST(req: Request): Promise<Response> {
 
       const newOrder = {
         id: orderId,
+        ...(customerId ? { customerId } : {}),
         customerName,
         phone,
         phoneKey: phoneKey(phone),
@@ -143,6 +157,17 @@ export async function POST(req: Request): Promise<Response> {
     if (e instanceof UserError) return json({ error: e.message }, 409);
     console.error('place-order failed', e);
     return json({ error: 'We could not place your order right now. Please try again, or order on WhatsApp.' }, 500);
+  }
+
+  if (customerId && saveAddress) {
+    try {
+      await db.doc(`customers/${customerId}`).set(
+        { id: customerId, phone, defaultAddress: { name: customerName, phone, address, city, area, postalCode }, updatedAt: new Date().toISOString() },
+        { merge: true }
+      );
+    } catch (e) {
+      console.error('Saving customer address failed', e);
+    }
   }
 
   if (alertTo) {

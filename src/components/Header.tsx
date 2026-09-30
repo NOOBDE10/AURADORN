@@ -44,6 +44,8 @@ export const Header: React.FC<HeaderProps> = ({
     openCart, 
     openWishlist, 
     openAdmin, 
+    openAccount,
+    user,
     openTracking,
     openProductDetails
   } = useStore();
@@ -441,10 +443,21 @@ export const Header: React.FC<HeaderProps> = ({
               </button>
             )}
 
+            {/* Customer account */}
+            <button
+              onClick={openAccount}
+              className="p-2.5 text-[#D8CDC0] hover:text-[#E5C378] hover:bg-[#1A1713] rounded-full transition-all duration-200 relative active:scale-95 cursor-pointer"
+              aria-label={user ? 'My account' : 'Log in or create an account'}
+              title={user ? 'My account' : 'Log in / Sign up'}
+            >
+              <UserIcon className="w-5 h-5" />
+              {user && <span className="absolute bottom-1.5 right-1.5 w-2 h-2 bg-emerald-400 rounded-full ring-2 ring-[#0B0A08]" />}
+            </button>
+
             {/* Order tracking */}
             <button
               onClick={() => openTracking()}
-              className="p-2.5 text-[#D8CDC0] hover:text-[#E5C378] hover:bg-[#1A1713] rounded-full transition-all duration-200 relative active:scale-95 cursor-pointer"
+              className="hidden sm:inline-flex p-2.5 text-[#D8CDC0] hover:text-[#E5C378] hover:bg-[#1A1713] rounded-full transition-all duration-200 relative active:scale-95 cursor-pointer"
               aria-label="Track your order"
               title="Track your order"
             >
@@ -668,6 +681,19 @@ export const Header: React.FC<HeaderProps> = ({
             </div>
 
             <div className="pt-4 border-t border-[#241F1A] space-y-2">
+              <button
+                onClick={() => {
+                  openAccount();
+                  setIsMobileMenuOpen(false);
+                }}
+                className="w-full flex items-center justify-between px-3 py-2.5 text-sm font-medium text-[#FAF7F2] hover:bg-[#181613] hover:text-[#E5C378] rounded-lg cursor-pointer transition-colors"
+              >
+                <span className="flex items-center gap-2">
+                  <UserIcon className="w-4 h-4 text-[#E5C378]" />
+                  {user ? 'My Account & Orders' : 'Log In / Sign Up'}
+                </span>
+                <ArrowRight className="w-4 h-4 text-stone-500" />
+              </button>
               <button
                 onClick={() => {
                   openTracking();

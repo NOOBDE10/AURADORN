@@ -32,5 +32,7 @@ export function getAuthLazy(): Promise<Auth> {
   return authPromise;
 }
 
-/** Set after an admin signs in, so returning admins restore their session automatically. */
-export const ADMIN_SESSION_FLAG = 'aura_adorn_admin_session';
+/** Set after anyone (customer or admin) signs in, so returning users restore their session automatically. */
+export const AUTH_SESSION_FLAG = 'aura_adorn_session';
+/** Older flag name, still honoured for admins who signed in before customer accounts existed. */
+export const LEGACY_ADMIN_SESSION_FLAG = 'aura_adorn_admin_session';

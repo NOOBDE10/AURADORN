@@ -163,20 +163,25 @@ export interface StoreSettings {
   termsPolicy?: string;
 }
 
+export interface SavedAddress {
+  name?: string;
+  phone?: string;
+  address: string;
+  city: string;
+  area?: string;
+  postalCode?: string;
+}
+
+/** Stored at customers/{uid}; readable and writable only by that customer (and admins). */
 export interface CustomerProfile {
   id: string;
   name: string;
   email: string;
   phone?: string;
-  savedAddresses?: Array<{
-    address: string;
-    city: string;
-    area: string;
-    postalCode: string;
-    isDefault: boolean;
-  }>;
+  defaultAddress?: SavedAddress;
   wishlist: string[]; // product IDs
   createdAt: string;
+  updatedAt?: string;
 }
 
 export interface NewsletterSubscriber {
