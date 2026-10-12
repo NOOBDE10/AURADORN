@@ -40,6 +40,8 @@ export async function POST(req: Request): Promise<Response> {
   const notes = str(body.notes, 1000);
   const items = Array.isArray(body.items) ? (body.items as ItemRequest[]) : [];
   const saveAddress = body.saveAddress === true;
+  // One ID per checkout attempt: a double-tap or a retry after a network error returns the same order.
+  const requestId = /^[A-Za-z0-9_-]{8,64}$/.test(String(body.requestId || '')) ? String(body.requestId) : null;
 
   // Optional: a signed-in customer sends their Firebase ID token; the order is linked to their account.
   let customerId: string | null = null;
@@ -113,6 +115,11 @@ export async function POST(req: Request): Promise<Response> {
         }
       }
 
+      if (requestId) {
+        const existing = await tx.get(db.collection('orders').where('requestId', '==', requestId).limit(1));
+        if (!existing.empty) return { ...existing.docs[0].data(), __duplicate: true };
+      }
+
       let orderId = newOrderId();
       if ((await tx.get(db.doc(`orders/${orderId}`))).exists) orderId = newOrderId();
 
@@ -123,6 +130,7 @@ export async function POST(req: Request): Promise<Response> {
       const newOrder = {
         id: orderId,
         ...(customerId ? { customerId } : {}),
+        ...(requestId ? { requestId } : {}),
         customerName,
         phone,
         phoneKey: phoneKey(phone),
@@ -159,6 +167,11 @@ export async function POST(req: Request): Promise<Response> {
     return json({ error: 'We could not place your order right now. Please try again, or order on WhatsApp.' }, 500);
   }
 
+  if (order.__duplicate) {
+    const { phoneKey: _p, requestId: _r, __duplicate: _d, ...again } = order;
+    return json({ order: again });
+  }
+
   if (customerId && saveAddress) {
     try {
       await db.doc(`customers/${customerId}`).set(
@@ -179,6 +192,6 @@ export async function POST(req: Request): Promise<Response> {
     }
   }
 
-  const { phoneKey: _omit, ...publicOrder } = order;
+  const { phoneKey: _omit, requestId: _req, ...publicOrder } = order;
   return json({ order: publicOrder });
 }

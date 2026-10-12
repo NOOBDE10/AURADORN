@@ -112,17 +112,26 @@ export interface PlaceOrderRequest {
   /** Signed-in customers: save this address to their account for next time. */
   saveAddress?: boolean;
   website?: string;
+  /** Same value for retries of one checkout, so the server never creates the order twice. */
+  requestId?: string;
 }
 
 async function callFunction<T>(name: string, body: unknown, idToken?: string | null): Promise<T> {
   let res: Response;
   try {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 30000);
     res = await fetch(`/api/${name}`, {
+      signal: controller.signal,
       method: 'POST',
       headers: { 'Content-Type': 'application/json', ...(idToken ? { Authorization: `Bearer ${idToken}` } : {}) },
       body: JSON.stringify(body),
     });
-  } catch {
+    clearTimeout(timer);
+  } catch (e) {
+    if ((e as Error)?.name === 'AbortError') {
+      throw new Error('This is taking too long. Please check your internet and tap the button again. Your order will not be placed twice.');
+    }
     throw new Error('Network error. Please check your internet connection and try again.');
   }
   const data = await res.json().catch(() => ({}));

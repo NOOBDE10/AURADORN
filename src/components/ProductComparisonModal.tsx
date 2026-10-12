@@ -34,7 +34,8 @@ export const ProductComparisonModal: React.FC = () => {
     openProductDetails,
     products,
     addToCompare,
-    showToast
+    showToast,
+    buyNow
   } = useStore();
 
   const [highlightDiffs, setHighlightDiffs] = useState(false);
@@ -53,9 +54,7 @@ export const ProductComparisonModal: React.FC = () => {
   };
 
   const handleBuyNow = (product: Product) => {
-    addToCart(product, 1);
-    closeCompareModal();
-    openCheckout();
+    buyNow(product, 1);
   };
 
   // Helper to determine if an attribute value differs across the compared pieces

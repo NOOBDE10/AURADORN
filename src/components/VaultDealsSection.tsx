@@ -28,7 +28,8 @@ export const VaultDealsSection: React.FC<VaultDealsSectionProps> = ({ onNavigate
     toggleWishlist, 
     isInWishlist, 
     openCheckout,
-    showToast 
+    showToast,
+    buyNow
   } = useStore();
 
   // Deal items curated from store products with discounts, plus fallback high-discount items
@@ -52,8 +53,7 @@ export const VaultDealsSection: React.FC<VaultDealsSectionProps> = ({ onNavigate
 
   const handleFastBuy = (product: Product, e: React.MouseEvent) => {
     e.stopPropagation();
-    addToCart(product, 1);
-    openCheckout();
+    buyNow(product, 1);
   };
 
   if (activeDeals.length === 0) return null;

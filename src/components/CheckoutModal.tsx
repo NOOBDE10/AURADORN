@@ -45,6 +45,18 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({ onOrderSuccess }) 
   });
 
   const [saveAddress, setSaveAddress] = useState(true);
+  // One ID for this checkout: if the customer taps again or retries after a network problem,
+  // the server returns the same order instead of creating a duplicate.
+  const [requestId] = useState(() =>
+    typeof crypto !== 'undefined' && 'randomUUID' in crypto
+      ? crypto.randomUUID().replace(/-/g, '')
+      : `${Date.now().toString(36)}${Math.random().toString(36).slice(2, 12)}`
+  );
+
+  // Load the order confirmation screen now, so it appears instantly after the order is placed.
+  useEffect(() => {
+    import('./OrderSuccessModal').catch(() => undefined);
+  }, []);
 
   // Logged-in customers: prefill empty fields from their account.
   useEffect(() => {
@@ -74,6 +86,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({ onOrderSuccess }) 
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (isSubmitting) return;
 
     const phoneDigits = formData.phone.replace(/\D/g, '');
     if (formData.customerName.trim().length < 2) {
@@ -108,6 +121,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({ onOrderSuccess }) 
         notes: formData.notes.trim(),
         website: formData.website,
         saveAddress: Boolean(user) && saveAddress,
+        requestId,
         items: cart.map(item => ({
           productId: item.product.id,
           quantity: item.quantity,

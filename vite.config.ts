@@ -3,10 +3,12 @@ import react from '@vitejs/plugin-react';
 import path from 'path';
 import {defineConfig} from 'vite';
 import {VitePWA} from 'vite-plugin-pwa';
+import {apiDevServer} from './scripts/vite-api-dev';
 
 export default defineConfig(() => {
   return {
     plugins: [
+      apiDevServer(),
       react(),
       tailwindcss(),
       VitePWA({

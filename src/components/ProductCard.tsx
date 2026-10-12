@@ -21,7 +21,8 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product, index = 0 }) 
     openCheckout,
     addToCompare,
     removeFromCompare,
-    isInCompare
+    isInCompare,
+    buyNow
   } = useStore();
 
   const [isHovered, setIsHovered] = useState(false);
@@ -41,8 +42,7 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product, index = 0 }) 
   // Handle instant Buy Now
   const handleBuyNow = (e: React.MouseEvent) => {
     e.stopPropagation();
-    addToCart(product, 1);
-    openCheckout();
+    buyNow(product, 1);
   };
 
   const handleAddToCart = (e: React.MouseEvent) => {

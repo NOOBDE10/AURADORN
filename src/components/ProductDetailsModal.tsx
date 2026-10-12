@@ -36,7 +36,8 @@ export const ProductDetailsModal: React.FC = () => {
     products,
     reviews,
     showToast,
-    refreshData: _refreshData
+    refreshData: _refreshData,
+    buyNow
   } = useStore();
 
   const [activeImageIndex, setActiveImageIndex] = useState(0);
@@ -100,9 +101,7 @@ export const ProductDetailsModal: React.FC = () => {
       showToast(`Please choose a ${optionLabel.toLowerCase()}.`, 'info');
       return;
     }
-    addToCart(selectedProduct, quantity, undefined, selectedSize || undefined);
-    closeProductDetails();
-    openCheckout();
+    buyNow(selectedProduct, quantity, selectedSize || undefined);
   };
 
   const handleShare = async () => {

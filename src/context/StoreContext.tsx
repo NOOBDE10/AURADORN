@@ -91,6 +91,8 @@ interface StoreContextType {
   handleUpdateSettings: (settings: StoreSettings) => Promise<void>;
 
   addToCart: (product: Product, quantity?: number, selectedMetal?: string, selectedSize?: string) => void;
+  /** "Buy Now": make sure the item is in the bag (without adding extra) and go straight to checkout. */
+  buyNow: (product: Product, quantity?: number, selectedSize?: string) => void;
   removeFromCart: (productId: string, selectedSize?: string) => void;
   updateCartQuantity: (productId: string, delta: number, selectedSize?: string) => void;
   clearCart: () => void;
@@ -353,6 +355,39 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
     });
     if (added) showToast(`Added "${product.name}" to your bag.`, 'gold');
     else showToast(`Only ${product.stock} available.`, 'info');
+  }, [showToast]);
+
+  const buyNow = useCallback((product: Product, quantity = 1, selectedSize?: string) => {
+    if (product.stock <= 0 || product.status === 'out_of_stock') {
+      showToast('Sorry, this item is out of stock.', 'info');
+      return;
+    }
+    if ((product.options?.length || 0) > 0 && !selectedSize) {
+      // A size/colour has to be chosen first: show the product instead of an empty checkout.
+      setQuickViewProduct(null);
+      setIsCompareModalOpen(false);
+      setSelectedProduct(product);
+      showToast(`Please choose a ${(product.optionLabel || 'size').toLowerCase()} first.`, 'info');
+      return;
+    }
+    const size = selectedSize || '';
+    const wanted = Math.max(1, Math.min(quantity, product.stock));
+    setCart(prev => {
+      const idx = prev.findIndex(item => item.product.id === product.id && (item.selectedSize || '') === size);
+      if (idx >= 0) {
+        // Already in the bag: keep at least the requested quantity, but don't add another one on every tap.
+        if (prev[idx].quantity >= wanted) return prev;
+        const next = [...prev];
+        next[idx] = { ...next[idx], quantity: wanted };
+        return next;
+      }
+      return [...prev, { product, quantity: wanted, selectedMetal: product.details?.metal, selectedSize: size || undefined }];
+    });
+    setSelectedProduct(null);
+    setQuickViewProduct(null);
+    setIsCompareModalOpen(false);
+    setIsCartOpen(false);
+    setIsCheckoutOpen(true);
   }, [showToast]);
 
   const removeFromCart = useCallback((productId: string, selectedSize?: string) => {
@@ -780,6 +815,7 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
         handleUpdateSettings,
 
         addToCart,
+        buyNow,
         removeFromCart,
         updateCartQuantity,
         clearCart,

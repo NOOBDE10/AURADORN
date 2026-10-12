@@ -12,7 +12,8 @@ export const QuickViewModal: React.FC = () => {
     addToCart, 
     openCheckout, 
     toggleWishlist, 
-    isInWishlist 
+    isInWishlist,
+    buyNow
   } = useStore();
 
   if (!quickViewProduct) return null;
@@ -20,9 +21,7 @@ export const QuickViewModal: React.FC = () => {
   const isWishlisted = isInWishlist(quickViewProduct.id);
 
   const handleBuyNow = () => {
-    addToCart(quickViewProduct, 1);
-    closeQuickView();
-    openCheckout();
+    buyNow(quickViewProduct, 1);
   };
 
   const handleOpenFull = () => {
