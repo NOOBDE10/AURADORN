@@ -1,6 +1,6 @@
 
 import { db, json, phoneKey } from './_lib/firebase.js';
-import { getAuth } from 'firebase-admin/auth';
+import { verifyCustomerToken } from './_lib/auth.js';
 import { sendOrderAlert } from './_lib/email.js';
 
 interface ItemRequest { productId: string; quantity: number; option?: string }
@@ -18,7 +18,7 @@ function newOrderId(): string {
 
 class UserError extends Error {}
 
-export async function POST(req: Request): Promise<Response> {
+async function handle(req: Request): Promise<Response> {
 
   let body: Record<string, unknown>;
   try {
@@ -47,9 +47,8 @@ export async function POST(req: Request): Promise<Response> {
   let customerId: string | null = null;
   const authHeader = req.headers.get('authorization') || '';
   if (authHeader.startsWith('Bearer ')) {
-    try {
-      customerId = (await getAuth().verifyIdToken(authHeader.slice(7))).uid;
-    } catch {
+    customerId = await verifyCustomerToken(authHeader.slice(7)).catch(() => null);
+    if (!customerId) {
       return json({ error: 'Your login session has expired. Please log in again or check out as a guest.' }, 401);
     }
   }
@@ -194,4 +193,14 @@ export async function POST(req: Request): Promise<Response> {
 
   const { phoneKey: _omit, requestId: _req, ...publicOrder } = order;
   return json({ order: publicOrder });
+}
+
+/** Any unexpected error returns a readable JSON message instead of a crashed function. */
+export async function POST(req: Request): Promise<Response> {
+  try {
+    return await handle(req);
+  } catch (e) {
+    console.error('place-order: unexpected error', e);
+    return json({ error: 'We could not place your order right now. Please try again in a moment, or order on WhatsApp.' }, 500);
+  }
 }

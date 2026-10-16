@@ -1,5 +1,3 @@
-import nodemailer from 'nodemailer';
-
 const escape = (s: unknown) =>
   String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]!));
 
@@ -30,6 +28,8 @@ export async function sendOrderAlert(to: string, brandName: string, order: Order
     console.warn('Order email skipped: GMAIL_USER / GMAIL_APP_PASSWORD not set');
     return;
   }
+  // Loaded only when an email is actually sent, so the email library can never block order placement.
+  const { default: nodemailer } = await import('nodemailer');
   const transporter = nodemailer.createTransport({ service: 'gmail', auth: { user, pass } });
 
   const rows = order.items
